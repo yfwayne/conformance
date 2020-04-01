@@ -49,7 +49,7 @@ def test_dst_in_progress(nvme0, nsid, stc):
     with pytest.warns(UserWarning, match="ERROR status: 01/1d"):
         nvme0.dst(stc, nsid).waitdone()
 
-    # check dst log page till no dst in progress
+    # check dst log page till dst finishes
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     while buf[0]:
         time.sleep(1)
@@ -67,6 +67,8 @@ def test_dst_abort(nvme0, nsid, stc):
     nvme0.dst(stc, nsid).waitdone()
     
     nvme0.dst(0xf, nsid).waitdone()
+
+    # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
         
@@ -95,6 +97,8 @@ def test_dst_abort_by_format(nvme0, stc, nsid=1):
     nvme0.dst(stc, nsid).waitdone()
 
     nvme0.format(0, 0).waitdone()
+
+    # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
     
@@ -107,6 +111,8 @@ def test_dst_short_abort_by_reset(nvme0):
     nvme0.dst(1, 0).waitdone()
 
     nvme0.reset()
+    
+    # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
 
@@ -119,6 +125,8 @@ def test_dst_extended_abort_by_reset(nvme0):
     nvme0.dst(2, 0).waitdone()
 
     nvme0.reset()
+    
+    # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert buf[0]
 
@@ -144,11 +152,12 @@ def test_dst_abort_by_sanitize(nvme0, nvme0n1, stc, nsid=1):
     with pytest.warns(UserWarning, match="AER notification is triggered"):
         nvme0.getlogpage(0x81, buf, 20).waitdone()
         while buf.data(3, 2) & 0x7 != 1:  # sanitize operation is not completed
+            nvme0.getlogpage(0x81, buf, 20).waitdone()
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-            nvme0.getlogpage(0x81, buf, 20).waitdone()
             time.sleep(1)    
 
+    # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
 
@@ -171,15 +180,11 @@ def test_dst_after_sanitize(nvme0, nvme0n1, stc, nsid=1):
     with pytest.warns(UserWarning, match="AER notification is triggered"):
         nvme0.getlogpage(0x81, buf, 20).waitdone()
         while buf.data(3, 2) & 0x7 != 1:  # sanitize operation is not completed
+            nvme0.getlogpage(0x81, buf, 20).waitdone()
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-            nvme0.getlogpage(0x81, buf, 20).waitdone()
             time.sleep(1)    
 
-    # check dst log page till no dst in progress
+    # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
-    while buf[0]:
-        time.sleep(1)
-        nvme0.getlogpage(0x6, buf, 32).waitdone()
-        logging.info("current dst progress percentage: %d%%" % buf[1])
-
+    assert not buf[0]

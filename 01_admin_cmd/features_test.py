@@ -51,7 +51,8 @@ def test_features_sel_01(nvme0, new_value=0x7):
         nonlocal new_config; new_config = cdw0
     nvme0.getfeatures(1, sel=0, cb=getfeatures_cb_3).waitdone()
     logging.debug("%x" % new_config)
-    assert new_config == orig_config|0x7
+    logging.debug("%x" % orig_config)
+    assert new_config == orig_config|0x07
     nvme0.getfeatures(1, sel=1, cb=getfeatures_cb_3).waitdone()
     logging.debug("%x" % orig_config)
     assert new_config == orig_config
@@ -118,7 +119,7 @@ def test_features_sel_11(nvme0, subsystem):
     orig_config = 0
     def getfeatures_cb_1(cdw0, status):
         nonlocal orig_config; orig_config = cdw0
-    for fid in list(range(1, 0x20)) + list(range(0x80, 0x85)):
+    for fid in range(1, 10):
         nvme0.getfeatures(fid, sel=3, cb=getfeatures_cb_1).waitdone()
         logging.info("fid 0x%02x capability: 0x%02x" % (fid, orig_config))
 
@@ -153,8 +154,8 @@ def test_features_set_volatile_write_cache(nvme0):
 
 def test_features_set_invalid_ncqr(nvme0):
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):
-        nvme0.setfeatures(7, 0xffff).waitdone()
+        nvme0.setfeatures(7, cdw11=0xffff).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):
-        nvme0.setfeatures(7, 0xffff0000).waitdone()
+        nvme0.setfeatures(7, cdw11=0xffff0000).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):
-        nvme0.setfeatures(7, 0xffffffff).waitdone()
+        nvme0.setfeatures(7, cdw11=0xffffffff).waitdone()
