@@ -6,9 +6,9 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 
 
 def test_aer_limit_exceeded(nvme0):
-    for i in range(64):
-        with pytest.warns(UserWarning, match="ERROR status: 01/05"):
-            nvme0.aer().waitdone()
+    # aer should all sent by driver at init time
+    with pytest.warns(UserWarning, match="ERROR status: 01/05"):
+        nvme0.aer().waitdone()
 
 
 @pytest.mark.parametrize("repeat", range(2))
@@ -30,9 +30,9 @@ def test_aer_sanitize(nvme0, nvme0n1, buf, aer, repeat):
     nvme0.getlogpage(0x81, buf, 20).waitdone()
     with pytest.warns(UserWarning, match="AER notification is triggered"):
         while buf.data(3, 2) & 0x7 != 1:  # sanitize operation is not completed
+            nvme0.getlogpage(0x81, buf, 20).waitdone()
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-            nvme0.getlogpage(0x81, buf, 20).waitdone()
             time.sleep(1)
             
     assert aer_cdw0 == 0x810106
