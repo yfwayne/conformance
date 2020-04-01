@@ -55,14 +55,33 @@ def test_identify_namespace(nvme0):
     nvme0.identify(buf, nsid=0xffffffff, cns=0).waitdone()
     
 
-def test_identify_namespace_list(nvme0, buf):
+def test_identify_namespace_id_list(nvme0, buf):
     nvme0.identify(buf, nsid=0, cns=2).waitdone()
     assert buf[0] == 1
     assert buf[16] == 0
+
     nvme0.identify(buf, nsid=1, cns=0).waitdone()
+    print(buf.dump(64))
     assert buf[0] != 0
-    assert buf[0] == buf[16]
-    
+    for i in range(8):
+        assert buf[i] == buf[i+8]
+
+
+def test_identify_name_utilitzation(nvme0, nvme0n1, buf):
+    q = Qpair(nvme0, 10)
+    orig_nuse = nvme0n1.id_data(23, 16)
+
+    # trim lba 0
+    buf.set_dsm_range(0, 0, 8)
+    nvme0n1.dsm(q, buf, 1).waitdone()
+    nuse = nvme0n1.id_data(23, 16)
+    assert nuse == orig_nuse-8
+
+    # write lba 0
+    nvme0n1.write(q, buf, 0, 8).waitdone()
+    nuse = nvme0n1.id_data(23, 16)
+    assert nuse == orig_nuse
+        
 
 def test_identify_namespace_identification_descriptor(nvme0, buf):
     with pytest.warns(UserWarning, match="ERROR status: 00/0b"):

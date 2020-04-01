@@ -6,10 +6,10 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 
 
 def test_getlogpage_page_id(nvme0, buf):
-    for lid in (1, 2, 3, 5, 6, 7, 8, 0x81):
+    for lid in (1, 2, 3, 5, 6, 0x81):
         nvme0.getlogpage(lid, buf).waitdone()
 
-    for lid in (0, 0x6f, 0x7f, 0xff):
+    for lid in (0, 7, 8, 0x6f, 0x7f, 0xff):
         with pytest.warns(UserWarning, match="ERROR status: 01/09"):
             nvme0.getlogpage(lid, buf).waitdone()
         
@@ -52,7 +52,7 @@ def test_getlogpage_data_unit_read(nvme0, nvme0n1, len, buf):
         pytest.skip("compare is not support")
 
     qpair = Qpair(nvme0, 10)
-    nvme0n1.write(qpair, buf, 0).waitdone()
+    nvme0n1.write(qpair, buf, 0, len).waitdone()
 
     nvme0.getlogpage(2, buf).waitdone()
     nread1 = buf.data(47, 32)
@@ -65,7 +65,7 @@ def test_getlogpage_data_unit_read(nvme0, nvme0n1, len, buf):
     assert nread2 == nread1+len
 
     # compare
-    nvme0n1.read(qpair, buf, 0, 1).waitdone()  # get correct data
+    nvme0n1.read(qpair, buf, 0, len).waitdone()  # get correct data
     for i in range(1000):
         nvme0n1.compare(qpair, buf, 0, len).waitdone()
     nvme0.getlogpage(2, buf).waitdone()
@@ -123,10 +123,11 @@ def test_getlogpage_power_cycle_count(nvme0, subsystem, buf):
 
 
 def test_getlogpage_namespace(nvme0, buf):
-    nvme0.getlogpage(2, buf, nsid=0).waitdone()
     nvme0.getlogpage(2, buf, nsid=1).waitdone()
     nvme0.getlogpage(2, buf, nsid=0xffffffff).waitdone()
 
+    with pytest.warns(UserWarning, match="ERROR status: 00/0b"):
+        nvme0.getlogpage(2, buf, nsid=0).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/0b"):
         nvme0.getlogpage(2, buf, nsid=2).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/0b"):
@@ -140,24 +141,32 @@ def test_getlogpage_smart_composite_temperature(nvme0):
     ktemp = smart_log.data(2, 1)
     logging.debug("temperature: %d degreeF" % ktemp)
 
-    # over composite temperature threshold
-    nvme0.setfeatures(4, cdw11=ktemp-10).waitdone()
-
     # warning with AER
     with pytest.warns(UserWarning, match="AER notification is triggered"):
+        # over composite temperature threshold
+        nvme0.setfeatures(4, cdw11=ktemp-10).waitdone()
+        
         nvme0.getlogpage(0x02, smart_log, 512).waitdone()
         logging.debug("0x%x" % smart_log.data(0))
-    nvme0.getlogpage(0x02, smart_log, 512).waitdone()    
-    assert smart_log.data(0) & 0x2
-    
+        nvme0.getlogpage(0x02, smart_log, 512).waitdone()    
+        assert smart_log.data(0) & 0x2
+
+        # higher threshold
+        nvme0.setfeatures(4, cdw11=ktemp+10).waitdone()
+
+    # aer is not expected
+    nvme0.getlogpage(0x02, smart_log, 512).waitdone()
+    ktemp = smart_log.data(2, 1)
+    logging.debug("temperature: %d degreeF" % ktemp)
+
     # revert to default
     orig_config = 0
     def getfeatures_cb_4(cdw0, status):
         nonlocal orig_config; orig_config = cdw0
     nvme0.getfeatures(4, sel=1, cb=getfeatures_cb_4).waitdone()
-    nvme0.setfeatures(4, cdw11=orig_config).waitdone()
-    
+    nvme0.setfeatures(4, cdw11=orig_config).waitdone()    
 
+    
 def test_getlogpage_persistent_event_log(nvme0):
     if not (nvme0.id_data(261)&0x10):
         pytest.skip("feature sv is not supported")
