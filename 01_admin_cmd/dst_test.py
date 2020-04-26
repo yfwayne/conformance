@@ -1,6 +1,7 @@
 import time
 import pytest
 import logging
+import warnings
 
 from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 
@@ -89,7 +90,7 @@ def test_dst_invalid_stc(nvme0, nsid=1):
 
     
 @pytest.mark.parametrize("stc", [1, 2])
-def test_dst_abort_by_format(nvme0, stc, nsid=1):
+def test_dst_abort_by_format(nvme0, nvme0n1, stc, nsid=1):
     buf = Buffer(4096)
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
@@ -143,6 +144,11 @@ def test_dst_abort_by_sanitize(nvme0, nvme0n1, stc, nsid=1):
     buf = Buffer(4096)
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
+
+    # aer callback function
+    def cb(cdw0, status):
+        warnings.warn("AER notification is triggered")
+    nvme0.aer(cb)
     
     nvme0.dst(stc, nsid).waitdone()
 
@@ -156,6 +162,7 @@ def test_dst_abort_by_sanitize(nvme0, nvme0n1, stc, nsid=1):
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
             time.sleep(1)    
+        nvme0.waitdone()  # aer complete
 
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
@@ -170,6 +177,11 @@ def test_dst_after_sanitize(nvme0, nvme0n1, stc, nsid=1):
     buf = Buffer(4096)
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
+
+    # aer callback function
+    def cb(cdw0, status):
+        warnings.warn("AER notification is triggered")
+    nvme0.aer(cb)
     
     nvme0.sanitize().waitdone()  # sanitize command is completed
 
@@ -184,6 +196,7 @@ def test_dst_after_sanitize(nvme0, nvme0n1, stc, nsid=1):
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
             time.sleep(1)    
+        nvme0.waitdone()  # aer complete
 
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()

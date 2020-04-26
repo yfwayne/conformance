@@ -1,18 +1,32 @@
 import time
 import pytest
 import logging
+import warnings
 
 from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 
 
 def test_aer_limit_exceeded(nvme0):
-    # aer should all sent by driver at init time
+    aerl = nvme0.id_data(259)+1
+    for i in range(aerl):
+        nvme0.aer()
+
+    # send one more
     with pytest.warns(UserWarning, match="ERROR status: 01/05"):
         nvme0.aer().waitdone()
 
+    # abort all
+    for i in range(100):
+        nvme0.abort(i)
+
+    logging.info("reap %d command, including abort, and also aer commands" % (100+aerl))
+    # Command Abort Requested
+    with pytest.warns(UserWarning, match="ERROR status: 00/07"):
+        nvme0.waitdone(100+aerl)
+
 
 @pytest.mark.parametrize("repeat", range(2))
-def test_aer_sanitize(nvme0, nvme0n1, buf, aer, repeat):
+def test_aer_sanitize(nvme0, nvme0n1, buf, repeat):
     if nvme0.id_data(331, 328) == 0:
         pytest.skip("sanitize operation is not supported")
 
@@ -21,7 +35,8 @@ def test_aer_sanitize(nvme0, nvme0n1, buf, aer, repeat):
     def cb(cdw0, status):
         nonlocal aer_cdw0; aer_cdw0 = cdw0
         logging.info("sanitize AER, cdw0 0x%x" % cdw0)
-    aer(cb)
+        warnings.warn("AER notification is triggered")
+    nvme0.aer(cb)
         
     logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
     nvme0.sanitize().waitdone()  # sanitize command is completed
@@ -34,7 +49,7 @@ def test_aer_sanitize(nvme0, nvme0n1, buf, aer, repeat):
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
             time.sleep(1)
-            
+        nvme0.waitdone()
     assert aer_cdw0 == 0x810106
             
     nvme0.reset()
