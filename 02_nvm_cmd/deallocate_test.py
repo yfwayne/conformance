@@ -5,9 +5,6 @@ import logging
 from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 
 
-# TODO: SGL
-
-
 @pytest.mark.parametrize("repeat", range(32))
 def test_deallocate_and_write(nvme0, nvme0n1, repeat,
                               lba_start=1, lba_step=3, lba_count=3):
