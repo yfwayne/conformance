@@ -119,9 +119,6 @@ def test_deallocate_multiple_range(nvme0, nvme0n1):
     nvme0n1.read(q, buf, 4, 1).waitdone()
     logging.debug(buf[0:4])
     assert buf[0] == 4
-    nvme0n1.read(q, buf, 5, 1).waitdone()
-    logging.debug(buf[0:4])
-    assert buf[0] == 0
     
     nvme0n1.write(q, buf, 1, 4).waitdone()
     nvme0n1.read(q, buf, 1, 1).waitdone()
@@ -136,6 +133,3 @@ def test_deallocate_multiple_range(nvme0, nvme0n1):
     nvme0n1.read(q, buf, 4, 1).waitdone()
     logging.debug(buf[0:4])
     assert buf[0] == 4
-    nvme0n1.read(q, buf, 5, 1).waitdone()
-    logging.debug(buf[0:4])
-    assert buf[0] == 0
