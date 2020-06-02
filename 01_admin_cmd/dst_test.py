@@ -136,6 +136,26 @@ def test_dst_extended_abort_by_reset(nvme0):
     assert not buf[0]
 
     
+def test_dst_extended_abort_by_subsystem_reset(nvme0, subsystem):
+    buf = Buffer(4096)
+    nvme0.getlogpage(0x6, buf, 32).waitdone()
+    assert not buf[0]
+    
+    nvme0.dst(2, 0).waitdone()
+
+    time.sleep(2)
+    subsystem.reset()
+    nvme0.reset()
+    
+    # check if dst aborted
+    nvme0.getlogpage(0x6, buf, 32).waitdone()
+    assert buf[0]
+
+    nvme0.dst(0xf, 0).waitdone()
+    nvme0.getlogpage(0x6, buf, 32).waitdone()
+    assert not buf[0]
+
+    
 @pytest.mark.parametrize("stc", [1, 2])
 def test_dst_abort_by_sanitize(nvme0, nvme0n1, stc, nsid=1):
     if nvme0.id_data(331, 328) == 0:
