@@ -15,7 +15,7 @@ def mi_vpd_write(nvme0, data, offset=0, length=256):
         nvme_status = (status1 >> 1)
         mi_status = (dword0 & 0xff)
         response = (dword0 >> 8)
-    nvme0.mi_send(6, offset, length, data, mi_send_cb).waitdone()
+    nvme0.mi_send(6, offset, length, data, cb=mi_send_cb).waitdone()
     assert nvme_status == 0
     return mi_status, response
 
@@ -30,7 +30,7 @@ def mi_vpd_read(nvme0, data, offset=0, length=256):
         nvme_status = (status1 >> 1)
         mi_status = (dword0 & 0xff)
         response = (dword0 >> 8)
-    nvme0.mi_receive(5, offset, length, data, mi_receive_cb).waitdone()
+    nvme0.mi_receive(5, offset, length, data, cb=mi_receive_cb).waitdone()
     assert nvme_status == 0
     return mi_status, response
 
