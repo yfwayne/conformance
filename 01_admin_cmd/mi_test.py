@@ -50,3 +50,57 @@ def test_vpd_write_and_read(nvme0):
     assert write_buf != read_buf
     assert write_buf[:] == read_buf[:]
 
+
+def test_reset(nvme0, subsystem):
+    #nvme0.mi_send(7, 0).waitdone()
+    nvme0.reset()
+
+
+def test_invalid_operation(nvme0):
+    dword0 = nvme0.mi_send(0xbf).waitdone()
+    assert dword0&0xff == 0x3
+
+
+def test_configuration_get_invalid(nvme0):
+    dword0 = nvme0.mi_send(4, 1).waitdone()
+    logging.info(hex(dword0))
+
+    
+def test_configuration_get_health_status_change(nvme0):
+    dword0 = nvme0.mi_send(4, 2).waitdone()
+    logging.info(hex(dword0))
+
+
+def test_configuration_set_health_status_change(nvme0):
+    dword0 = nvme0.mi_send(3, 2, 0).waitdone()
+    logging.info(hex(dword0))
+
+
+def test_read_nvme_mi_data_structure_nvm_subsystem_information(nvme0):
+    buf = d.Buffer(0x2000)
+    dword0 = nvme0.mi_receive(0, 0, 0, buf).waitdone()
+    logging.info(hex(dword0))
+    logging.info(buf.dump(3))
+
+# use mi_send to read nvme mi data structure: illegal
+def test_read_nvme_mi_data_structure_nvm_subsystem_information_wrong_command(nvme0):
+    buf = d.Buffer(0x2000)
+    dword0 = nvme0.mi_send(0, 0, 0, buf).waitdone()
+    logging.info(hex(dword0))
+    logging.info(buf.dump(3))
+    
+
+def test_read_nvme_mi_data_structure_port_information(nvme0):
+    buf = d.Buffer(0x2000)
+    dword0 = nvme0.mi_receive(0, 1<<24, 0, buf).waitdone()
+    logging.info(hex(dword0))
+    logging.info(buf.dump(32))
+    assert buf[0] == 1
+
+    
+def test_read_nvme_mi_data_structure_port_information_wrong_port(nvme0):
+    buf = d.Buffer(0x2000)
+    dword0 = nvme0.mi_receive(0, (1<<24)+(1<<16), 0, buf).waitdone()
+    logging.info(hex(dword0))
+    logging.info(buf.dump(32))
+    
