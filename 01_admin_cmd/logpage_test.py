@@ -23,7 +23,12 @@ def test_getlogpage_invalid_numd(nvme0, repeat):
         with pytest.warns(UserWarning, match="ERROR status: 00/02"):
             nvme0.getlogpage(lid, buf).waitdone()
 
-        
+
+@pytest.mark.parametrize("repeat", range(2))
+def test_false(nvme0, subsystem, repeat):
+    assert False
+
+    
 def test_getlogpage_after_error(nvme0, nvme0n1, buf):
     q = Qpair(nvme0, 10)
     nvme0.getlogpage(1, buf).waitdone()
