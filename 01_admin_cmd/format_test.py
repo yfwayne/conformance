@@ -128,7 +128,7 @@ def test_format_invalid_lbaf(nvme0, nvme0n1, verify):
     assert read_buf[10:21] == b'hello world'        
     
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):
-        nvme0.format(2, 7).waitdone()
+        nvme0.format(0, 7).waitdone()
     nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] == b'hello world'        
 

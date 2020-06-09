@@ -56,7 +56,7 @@ def test_features_sel_01_reserved_bits(nvme0):
     test_features_sel_01(nvme0, new_value=0xf)
 
     
-def test_features_sel_10(nvme0, subsystem, fid=0x10):
+def test_features_sel_10(nvme0, fid=0x10):
     if not nvme0.id_data(521, 520)&0x10:
         pytest.skip("feature sv is not supported")
 
@@ -103,7 +103,7 @@ def test_features_sel_10(nvme0, subsystem, fid=0x10):
     nvme0.setfeatures(fid, cdw11=orig_config).waitdone()
     
 
-def test_features_sel_11(nvme0, subsystem):
+def test_features_sel_11(nvme0):
     if not nvme0.id_data(521, 520)&0x10:
         pytest.skip("feature sv is not supported")
 
