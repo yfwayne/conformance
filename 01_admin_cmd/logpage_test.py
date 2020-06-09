@@ -124,6 +124,7 @@ def test_getlogpage_power_cycle_count(nvme0, subsystem, buf):
     powercycle = get_power_cycles(nvme0)
 
     subsystem.power_cycle(10)
+    nvme0.reset()
     assert get_power_cycles(nvme0) == powercycle+1
 
 
