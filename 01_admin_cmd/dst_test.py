@@ -194,30 +194,27 @@ def test_dst_after_sanitize(nvme0, nvme0n1, stc, nsid=1):
     if nvme0.id_data(331, 328) == 0:
         pytest.skip("sanitize operation is not supported")
 
+    # check dst
     buf = Buffer(4096)
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
 
-    # aer callback function
-    def cb(cdw0, status):
-        warnings.warn("AER notification is triggered")
-    nvme0.aer(cb)
-    
+    logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
     nvme0.sanitize().waitdone()  # sanitize command is completed
 
-    with pytest.warns(UserWarning, match="ERROR status: 00/1d"):
-        nvme0.dst(stc, nsid).waitdone()
+    nvme0.dst(stc, nsid).waitdone()
 
     # check sanitize status in log page
     with pytest.warns(UserWarning, match="AER notification is triggered"):
         nvme0.getlogpage(0x81, buf, 20).waitdone()
         while buf.data(3, 2) & 0x7 != 1:  # sanitize operation is not completed
-            nvme0.getlogpage(0x81, buf, 20).waitdone()
+            time.sleep(1)
+            nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-            time.sleep(1)    
-        nvme0.waitdone()  # aer complete
-
+        # one more waitdone for AER
+        nvme0.waitdone()
+        
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]

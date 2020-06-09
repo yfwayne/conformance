@@ -31,29 +31,20 @@ def test_features_sel_01(nvme0, new_value=0x7):
     if not nvme0.id_data(521, 520)&0x10:
         pytest.skip("feature sv is not supported")
 
-    orig_config = 0
-    def getfeatures_cb_1(cdw0, status):
-        nonlocal orig_config; orig_config = cdw0
-    nvme0.getfeatures(1, sel=0, cb=getfeatures_cb_1).waitdone()
+    orig_config = nvme0.getfeatures(1, sel=0).waitdone()
     logging.debug("%x" % orig_config)
 
-    new_config = 0
-    def getfeatures_cb_2(cdw0, status):
-        nonlocal new_config; new_config = cdw0
-    nvme0.getfeatures(1, sel=1, cb=getfeatures_cb_2).waitdone()
+    new_config = nvme0.getfeatures(1, sel=1).waitdone()
     logging.debug("%x" % new_config)
     assert orig_config == new_config
 
     nvme0.setfeatures(1, cdw11=orig_config|new_value).waitdone()
 
-    new_config = 0
-    def getfeatures_cb_3(cdw0, status):
-        nonlocal new_config; new_config = cdw0
-    nvme0.getfeatures(1, sel=0, cb=getfeatures_cb_3).waitdone()
+    new_config = nvme0.getfeatures(1, sel=0).waitdone()
     logging.debug("%x" % new_config)
     logging.debug("%x" % orig_config)
     assert new_config == orig_config|0x07
-    nvme0.getfeatures(1, sel=1, cb=getfeatures_cb_3).waitdone()
+    new_config = nvme0.getfeatures(1, sel=1).waitdone()
     logging.debug("%x" % orig_config)
     assert new_config == orig_config
 

@@ -32,7 +32,7 @@ def test_firmware_commit(nvme0):
             nvme0.fw_commit(slot, 0).waitdone()
         
     logging.info("commit to invalid firmware slot")
-    with pytest.warns(UserWarning, match="ERROR status: 01/06"):
+    with pytest.warns(UserWarning, match="ERROR status: 01/07"):
         nvme0.fw_commit(0, 0).waitdone()
 
     if slot_count == 7:
