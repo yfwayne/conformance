@@ -24,17 +24,16 @@ def test_getlogpage_invalid_numd(nvme0, repeat):
             nvme0.getlogpage(lid, buf).waitdone()
 
 
-def test_getlogpage_after_error(nvme0, nvme0n1, buf):
-    q = Qpair(nvme0, 10)
+def test_getlogpage_after_error(nvme0, nvme0n1, buf, qpair):
     nvme0.getlogpage(1, buf).waitdone()
     assert buf.data(7, 0) == 0
-    nvme0n1.write_uncorrectable(q, 0, 8).waitdone()
+    nvme0n1.write_uncorrectable(qpair, 0, 8).waitdone()
 
     # generate 2 errors
     with pytest.warns(UserWarning, match="ERROR status: 02/81"):
-        nvme0n1.read(q, buf, 0, 8).waitdone()
+        nvme0n1.read(qpair, buf, 0, 8).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 02/81"):
-        nvme0n1.read(q, buf, 0, 8).waitdone()
+        nvme0n1.read(qpair, buf, 0, 8).waitdone()
 
     time.sleep(0.1) # wait error information ready
     with pytest.warns(UserWarning, match="AER notification is triggered"):
@@ -43,15 +42,14 @@ def test_getlogpage_after_error(nvme0, nvme0n1, buf):
     nerror2 = buf.data(64+7, 64)
     assert nerror1 == nerror2+1
 
-    nvme0n1.write(q, buf, 0, 8).waitdone()
+    nvme0n1.write(qpair, buf, 0, 8).waitdone()
     
 
 @pytest.mark.parametrize("len", (1, 2, 4))
-def test_getlogpage_data_unit_read(nvme0, nvme0n1, len, buf):
+def test_getlogpage_data_unit_read(nvme0, nvme0n1, buf, qpair, len):
     if not nvme0n1.supports(5):
         pytest.skip("compare is not support")
 
-    qpair = Qpair(nvme0, 10)
     nvme0n1.write(qpair, buf, 0, len).waitdone()
 
     nvme0.getlogpage(2, buf).waitdone()
@@ -82,11 +80,10 @@ def test_getlogpage_data_unit_read(nvme0, nvme0n1, len, buf):
 
 
 @pytest.mark.parametrize("len", (1, 2, 4))
-def test_getlogpage_data_unit_write(nvme0, nvme0n1, len, buf):
+def test_getlogpage_data_unit_write(nvme0, nvme0n1, len, buf, qpair):
     if not nvme0n1.supports(5):
         pytest.skip("compare is not support")
 
-    qpair = Qpair(nvme0, 10)
     nvme0n1.write(qpair, buf, 0).waitdone()
 
     nvme0.getlogpage(2, buf).waitdone()
