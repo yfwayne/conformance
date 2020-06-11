@@ -5,7 +5,7 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def ncqa(nvme0):
     num_of_queue = 0
     def test_greater_id(cdw0, status):
@@ -16,7 +16,7 @@ def ncqa(nvme0):
     return num_of_queue
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def mqes(nvme0):
     num_of_entry = (nvme0.cap&0xffff) + 1
     logging.info("number of queue: %d" % num_of_entry)
@@ -29,7 +29,8 @@ def test_create_cq_basic_operation(nvme0, nvme0n1, buf):
     for i in range(10):
         nvme0n1.read(q, buf, 0)
     q.waitdone(10)
-
+    q.delete()
+    
     
 def test_create_cq_with_invalid_id(nvme0, ncqa):
     # pass case

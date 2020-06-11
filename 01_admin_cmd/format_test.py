@@ -27,7 +27,7 @@ def test_format_all_basic(nvme0):
     nvme0.timeout = orig_timeout
         
 
-def test_format_verify_data(nvme0, nvme0n1, verify):
+def test_format_verify_data(nvme0, nvme0n1, verify, qpair):
     if not nvme0.supports(0x80):
         pytest.skip("format is not support")
 
@@ -38,7 +38,6 @@ def test_format_verify_data(nvme0, nvme0n1, verify):
     read_buf = Buffer(512)
     write_buf = Buffer(512)
     write_buf[10:21] = b'hello world'
-    qpair = Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
 
     nvme0n1.write(qpair, write_buf, 0, 1).waitdone()
     nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
@@ -81,7 +80,7 @@ def test_format_verify_data(nvme0, nvme0n1, verify):
     nvme0.timeout = orig_timeout
         
 
-def test_format_invalid_ses(nvme0, nvme0n1, verify):
+def test_format_invalid_ses(nvme0, nvme0n1, verify, qpair):
     if not nvme0.supports(0x80):
         pytest.skip("format is not support")
 
@@ -92,8 +91,7 @@ def test_format_invalid_ses(nvme0, nvme0n1, verify):
     read_buf = Buffer(512)
     write_buf = Buffer(512)
     write_buf[10:21] = b'hello world'
-    qpair = Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
-    
+
     nvme0n1.write(qpair, write_buf, 0, 1).waitdone()
     nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] == b'hello world'
@@ -105,7 +103,7 @@ def test_format_invalid_ses(nvme0, nvme0n1, verify):
     nvme0.timeout = orig_timeout
 
     
-def test_format_invalid_lbaf(nvme0, nvme0n1, verify):
+def test_format_invalid_lbaf(nvme0, nvme0n1, verify, qpair):
     if not nvme0.supports(0x80):
         pytest.skip("format is not support")
 
@@ -116,8 +114,7 @@ def test_format_invalid_lbaf(nvme0, nvme0n1, verify):
     read_buf = Buffer(512)
     write_buf = Buffer(512)
     write_buf[10:21] = b'hello world'
-    qpair = Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
-    
+
     nvme0n1.write(qpair, write_buf, 0, 1).waitdone()
     nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] == b'hello world'
