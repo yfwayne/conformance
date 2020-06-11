@@ -12,16 +12,19 @@ def test_create_cq_with_invalid_prp_offset(nvme0):
     prp = PRP(4096)
 
     prp.offset = 2048
+    IOCQ(nvme0, 1, 10, prp).delete()
+    
+    prp.offset = 2050
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
-        IOCQ(nvme0, 1, 10, prp)
+        IOCQ(nvme0, 1, 10, prp).delete()
     
     prp.offset = 4095
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
-        IOCQ(nvme0, 2, 10, prp)
+        IOCQ(nvme0, 2, 10, prp).delete()
 
     prp.offset = 255
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
-        IOCQ(nvme0, 2, 10, prp)
+        IOCQ(nvme0, 2, 10, prp).delete()
 
         
 def test_create_sq_with_invalid_prp_offset(nvme0):
@@ -29,16 +32,19 @@ def test_create_sq_with_invalid_prp_offset(nvme0):
     cq = IOCQ(nvme0, 1, 10, prp)
 
     prp.offset = 2048
+    IOSQ(nvme0, 1, 10, prp, cqid=1).delete()
+    
+    prp.offset = 2050
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
-        IOSQ(nvme0, 1, 10, prp, cqid=1)
+        IOSQ(nvme0, 1, 10, prp, cqid=1).delete()
     
     prp.offset = 4095
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
-        IOSQ(nvme0, 2, 10, prp, cqid=1)
+        IOSQ(nvme0, 2, 10, prp, cqid=1).delete()
         
     prp.offset = 255
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
-        IOSQ(nvme0, 2, 10, prp, cqid=1)
+        IOSQ(nvme0, 2, 10, prp, cqid=1).delete()
         
     cq.delete()
 

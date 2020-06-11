@@ -6,10 +6,9 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 
-def test_read_large_lba(nvme0, nvme0n1, buf):
+def test_read_large_lba(nvme0, nvme0n1, buf, qpair):
     ncap = nvme0n1.id_data(15, 8)
     
-    qpair = Qpair(nvme0, 16)
     nvme0n1.read(qpair, buf, ncap-1).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
         nvme0n1.read(qpair, buf, ncap).waitdone()
@@ -22,12 +21,11 @@ def test_read_large_lba(nvme0, nvme0n1, buf):
 
 
 @pytest.mark.parametrize("repeat", range(32))
-def test_read_max_namespace_size(nvme0, nvme0n1, buf, repeat):
+def test_read_max_namespace_size(nvme0, nvme0n1, buf, repeat, qpair):
     nsze = nvme0n1.id_data(7, 0)
     ncap = nvme0n1.id_data(15, 8)
     assert nsze == ncap
     
-    qpair = Qpair(nvme0, 16)
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
         nvme0n1.read(qpair, buf, nsze+repeat).waitdone()
 
@@ -38,39 +36,35 @@ def test_read_max_namespace_size(nvme0, nvme0n1, buf, repeat):
         nvme0n1.read(qpair, buf, 0xffffffffffffffff-repeat).waitdone()
     
 
-def test_read_fua(nvme0, nvme0n1, buf):
-    q = Qpair(nvme0, 8)
-
+def test_read_fua(nvme0, nvme0n1, buf, qpair):
     for i in range(100):
         # read with FUA enabled
-        nvme0n1.read(q, buf, 0, 8, 1<<30).waitdone()
+        nvme0n1.read(qpair, buf, 0, 8, 1<<30).waitdone()
 
 
-def test_read_bad_number_blocks(nvme0, nvme0n1):
-    q = Qpair(nvme0, 8)
+def test_read_bad_number_blocks(nvme0, nvme0n1, qpair):
     mdts = nvme0.mdts//512
     buf = Buffer(mdts*512+4096)
 
-    nvme0n1.read(q, buf, 0, mdts-1).waitdone()
-    nvme0n1.read(q, buf, 0, mdts).waitdone()
+    nvme0n1.read(qpair, buf, 0, mdts-1).waitdone()
+    nvme0n1.read(qpair, buf, 0, mdts).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):
-        nvme0n1.read(q, buf, 0, mdts+1).waitdone()
+        nvme0n1.read(qpair, buf, 0, mdts+1).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):
-        nvme0n1.read(q, buf, 0, mdts+2).waitdone()
+        nvme0n1.read(qpair, buf, 0, mdts+2).waitdone()
 
     nlb = 1
     while nlb < mdts:
-        nvme0n1.read(q, buf, 0, nlb).waitdone()
+        nvme0n1.read(qpair, buf, 0, nlb).waitdone()
         nlb = nlb<<1
 
         
 @pytest.mark.parametrize("ioflag", [0, 0x4000, 0x8000, 0xc000])
-def test_read_valid(nvme0, nvme0n1, ioflag):
+def test_read_valid(nvme0, nvme0n1, ioflag, qpair):
     # prepare data buffer and IO queue
     read_buf = Buffer(512)
     write_buf = Buffer(512)
     write_buf[10:21] = b'hello world'
-    qpair = Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
 
     # send write and read command
     def write_cb(cdw0, status1):  # command callback function

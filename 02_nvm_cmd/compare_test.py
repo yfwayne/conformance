@@ -6,31 +6,30 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 
-def test_compare_lba_0(nvme0, nvme0n1, buf):
+def test_compare_lba_0(nvme0, nvme0n1, buf, qpair):
     ncap = nvme0n1.id_data(15, 8)
-    q = Qpair(nvme0, 10)
     
-    nvme0n1.write(q, buf, 0).waitdone()
-    nvme0n1.compare(q, buf, 0).waitdone()
+    nvme0n1.write(qpair, buf, 0).waitdone()
+    nvme0n1.compare(qpair, buf, 0).waitdone()
 
     with pytest.warns(UserWarning, match="ERROR status: 02/85"):
-        nvme0n1.compare(q, buf, ncap-1).waitdone()
+        nvme0n1.compare(qpair, buf, ncap-1).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 02/85"):
         buf[0] += 1
-        nvme0n1.compare(q, buf, 0).waitdone()
+        nvme0n1.compare(qpair, buf, 0).waitdone()
 
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
-        nvme0n1.compare(q, buf, ncap).waitdone()
+        nvme0n1.compare(qpair, buf, ncap).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
-        nvme0n1.compare(q, buf, 0xffffffff).waitdone()
+        nvme0n1.compare(qpair, buf, 0xffffffff).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
-        nvme0n1.compare(q, buf, 0xffffffff00000000).waitdone()
+        nvme0n1.compare(qpair, buf, 0xffffffff00000000).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
-        nvme0n1.compare(q, buf, 0x100000000).waitdone()
+        nvme0n1.compare(qpair, buf, 0x100000000).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
-        nvme0n1.compare(q, buf, ncap-1, 2).waitdone()
+        nvme0n1.compare(qpair, buf, ncap-1, 2).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):
-        nvme0n1.compare(q, buf, ncap, 0x1000).waitdone()
+        nvme0n1.compare(qpair, buf, ncap, 0x1000).waitdone()
 
 
 def test_compare_invalid_nsid(nvme0, nvme0n1):

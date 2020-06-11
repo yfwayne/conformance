@@ -6,12 +6,11 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 
-def test_flush_with_read_write(nvme0, nvme0n1):
+def test_flush_with_read_write(nvme0, nvme0n1, qpair):
     # prepare data buffer and IO queue
     read_buf = Buffer(512)
     write_buf = Buffer(512)
     write_buf[10:21] = b'hello world'
-    qpair = Qpair(nvme0, 16)  # create IO SQ/CQ pair, with 16 queue-depth
 
     # send write and read command
     nvme0n1.write(qpair, write_buf, 0, 1).waitdone()
