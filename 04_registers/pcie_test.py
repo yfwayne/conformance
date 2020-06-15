@@ -5,6 +5,31 @@ import logging
 from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 
+def test_pcie_identifiers(pcie):
+    logging.info("Identifiers: 0x%x" % pcie.register(0))
+    logging.info("Subsystem Identifiers: 0x%x" % pcie.register(0x2c))
+    
+    
+def test_pcie_command(pcie):
+    logging.info("Command: 0x%x" % pcie.register(4, 2))
+    assert pcie.register(4, 2)&0x2 != 0
+    assert pcie.register(4, 2)&0xf800 == 0
+
+    
+def test_pcie_revision_id(pcie):
+    logging.info("Revision ID: 0x%x" % pcie.register(8, 1))
+
+    
+def test_pcie_class_code(pcie):
+    logging.info("Class Code: 0x%x" % pcie.register(9, 3))
+    assert pcie.register(9, 3) == 0x010802
+
+    
+def test_pcie_bist(pcie):
+    logging.info("Builtin self test: 0x%x" % pcie.register(0xf, 1))
+    assert pcie.register(0xf, 1) == 0
+    
+    
 def test_pcie_pmcr(pcie):
     pmcr_addr = pcie.cap_offset(0x01)
     pmcr = pcie.register(pmcr_addr, 4)
@@ -114,10 +139,11 @@ def test_pcie_link_control_aspm(nvme0, pcie, aspm): #1:0
     time.sleep(1)
     
 
-def test_pcie_pmcsr_d3hot(pcie):
+def test_pcie_pmcsr_d3hot(pcie, nvme0, buf):
     pm_offset = pcie.cap_offset(1)
     pmcs = pcie[pm_offset+4]
     logging.info("pmcs %x" % pmcs)
+    nvme0.identify(buf).waitdone()
 
     # set d3hot
     pcie[pm_offset+4] = pmcs|3     #D3hot
@@ -129,8 +155,28 @@ def test_pcie_pmcsr_d3hot(pcie):
     pcie[pm_offset+4] = pmcs&0xfc  #D0
     pmcs = pcie[pm_offset+4]
     logging.info("pmcs %x" % pmcs)
+    nvme0.identify(buf).waitdone()
+
+    # set d3hot
+    pcie[pm_offset+4] = pmcs|3     #D3hot
+    pmcs = pcie[pm_offset+4]
+    logging.info("pmcs %x" % pmcs)
+
+    with pytest.raises(TimeoutError):
+        with pytest.warns(UserWarning, match="ERROR status: 07/ff"):
+            nvme0.identify(buf).waitdone()
+
+    # and exit d3hot
+    time.sleep(1)
+    pcie[pm_offset+4] = pmcs&0xfc  #D0
+    pmcs = pcie[pm_offset+4]
+    logging.info("pmcs %x" % pmcs)
+    nvme0.identify(buf).waitdone()
 
     
-def test_pcie_cold_reset(subsystem):
+def test_pcie_cold_reset(subsystem, nvme0, buf):
+    nvme0.identify(buf).waitdone()
     subsystem.power_cycle()
+    nvme0.reset()
+    nvme0.identify(buf).waitdone()
     
