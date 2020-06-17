@@ -136,6 +136,11 @@ def test_dst_extended_abort_by_reset(nvme0):
     assert not buf[0]
 
     
+def test_pcie_reset_setup(pcie, nvme0):
+    pcie.reset()
+    nvme0.reset()
+    
+    
 def test_dst_extended_abort_by_subsystem_reset(nvme0, subsystem):
     buf = Buffer(4096)
     nvme0.getlogpage(0x6, buf, 32).waitdone()
