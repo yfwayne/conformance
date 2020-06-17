@@ -27,6 +27,6 @@ def test_abort_aer_commands(nvme0):
     logging.info("reap %d command, including abort, and also aer commands" % (100+aerl))
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(100):
-            nvme0.abort(i).waitdone()
+            nvme0.abort(127-i).waitdone()
         nvme0.waitdone(aerl)
         
