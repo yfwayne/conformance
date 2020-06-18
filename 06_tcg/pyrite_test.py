@@ -13,10 +13,12 @@ def test_pyrite_discovery0(nvme0):
     print(buf.dump(256))
 
     
+@pytest.mark.skip("tcg")
 def test_tcg_create(nvme0, tcg):
     tcg.take_ownership(b"123456")
 
 
+@pytest.mark.skip("tcg")
 def test_tcg_password_hack_resist(nvme0, tcg):
     """ cannot crack with the password list """
     
@@ -32,6 +34,7 @@ def test_tcg_password_hack_resist(nvme0, tcg):
         tcg.set_new_passwd(b'123456', b'123456')
 
         
+@pytest.mark.skip("tcg")
 def test_tcg_lock_hack_resist(nvme0, tcg, subsystem):
     """ cannot crack with the password list """
 
@@ -51,6 +54,7 @@ def test_tcg_lock_hack_resist(nvme0, tcg, subsystem):
         tcg.lock(b'123456')
 
         
+@pytest.mark.skip("tcg")
 def test_tcg_revert_hack_resist(nvme0, tcg, subsystem):
     """ cannot crack with the password list """
     
@@ -63,6 +67,7 @@ def test_tcg_revert_hack_resist(nvme0, tcg, subsystem):
             tcg.revert_tper(line.strip())
             
 
+@pytest.mark.skip("tcg")
 def test_tcg_clear(nvme0, tcg, subsystem):
     # power cycle to clear locked TCG state
     subsystem.power_cycle()
@@ -78,6 +83,7 @@ def test_tcg_clear(nvme0, tcg, subsystem):
         tcg.revert_tper(b"123456")
 
 
+@pytest.mark.skip("tcg")
 def test_tcg_revert_with_passwd(nvme0, tcg):
     tcg.take_ownership(b"123456")
     
@@ -90,6 +96,7 @@ def test_tcg_revert_with_passwd(nvme0, tcg):
     nvme0.timeout = 10000
 
 
+@pytest.mark.skip("tcg")
 def test_tcg_lock_unlock(nvme0, nvme0n1, tcg, buf):
     tcg.take_ownership(b"123456")
     
@@ -121,6 +128,7 @@ def test_tcg_lock_unlock(nvme0, nvme0n1, tcg, buf):
     nvme0.timeout = 10000
     
 
+@pytest.mark.skip("tcg")
 def test_tcg_pasword(nvme0, tcg):
     tcg.take_ownership(b"123456")
 
