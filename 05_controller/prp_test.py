@@ -1,3 +1,4 @@
+import time
 import pytest
 import logging
 
@@ -72,4 +73,56 @@ def test_hello_world(nvme0, nvme0n1, repeat):
     qpair.waitdone(2)
     assert read_buf[10:21] == b'hello world'
 
+
+def test_format_512(nvme0n1):
+    nvme0n1.format(512)
+
+    
+@pytest.mark.parametrize("mdts", [64, 128, 256, 512, 800, 1024, 16*1024, 32*1024, 32*1024+64, 32*1024+64+8, 64*1024])
+def test_write_mdts(nvme0, mdts):
+    cq = IOCQ(nvme0, 1, 2, PRP())
+    sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
+
+    # prp for the long buffer
+    write_buf_1 = PRP(ptype=32, pvalue=0xaaaaaaaa)
+    pages = mdts//8
+    pages -= 1
+
+    prp_list = PRPList()
+    prp_list_head = prp_list
+    while pages:
+        for i in range(63):
+            if pages:
+                prp_list[i] = PRP()
+                pages -= 1
+                logging.debug(pages)
+        if pages>1:
+            tmp = PRPList()
+            prp_list[63] = tmp
+            prp_list = tmp
+            logging.debug("prp_list")
+        elif pages==1:
+            prp_list[63] = PRP()
+            pages -= 1
+            logging.debug(pages)
+            
+    w1 = SQE(1, 1)
+    w1.prp1 = write_buf_1
+    w1.prp2 = prp_list_head
+    w1[12] = (mdts//8)-1 # 0based, nlba
+    w1.cid = 0x123
+    sq[0] = w1
+    sq.tail = 1
+
+    time.sleep(1)
+    cqe = CQE(cq[0])
+    logging.info(cqe)
+    assert cqe.p == 1
+    assert cqe.cid == 0x123
+    assert cqe.sqhd == 1
+    assert cqe.status == 0
+    cq.head = 1
+
+    sq.delete()
+    cq.delete()
     

@@ -22,11 +22,16 @@ def test_sq_cq_wrap(nvme0):
     assert cq[1][3] == 0x10003
     assert cq[2][3] == 0
     cq.head = 1
-    assert cq[2][3] == 0x10002
     assert cq[0][3] == 0x10004
+    assert cq[2][3] == 0x10002
     cq.head = 2
+    assert cq[2][3] == 0x10002
+    assert cq[1][3] == 0x10003
     assert cq[0][3] == 0x00001
 
+    sq.delete()
+    cq.delete()
+    
     
 def test_sq_wrap_overflow(nvme0):
     cq = IOCQ(nvme0, 1, 5, PRP())
@@ -50,6 +55,9 @@ def test_sq_wrap_overflow(nvme0):
     assert cq[4][3] == 0
     logging.info(sq[0])
     logging.info(cq[0])
+    
+    sq.delete()
+    cq.delete()
     
 
 def test_delete_cq_before_sq(nvme0):
@@ -131,3 +139,7 @@ def test_sq_cq_another_sq(nvme0):
     cq.head = 2
     assert cq[0][3] == 0x00001
 
+    sq.delete()
+    sq2.delete()
+    cq.delete()
+    
