@@ -137,12 +137,15 @@ def test_page_offset(nvme0, nvme0n1, qpair, buf, offset):
 
 
 @pytest.mark.parametrize("offset", [1, 2, 3, 501, 502])
-def test_page_offset_invalid(nvme0, nvme0n1, qpair, buf, offset):
+def test_page_offset_invalid(nvme0, nvme0n1, qpair, offset):
     # fill the data
     write_buf = Buffer(512)
     nvme0n1.write(qpair, write_buf, 0x5aa5).waitdone()
 
     # read the data to different offset and check lba
+    buf = Buffer(1024, ptype=0, pvalue=1)
     buf.offset = offset
-    with pytest.warns(UserWarning, match="ERROR status: 00/13"):
+    with pytest.warns(UserWarning, match="ERROR status: 00/"):
         nvme0n1.read(qpair, buf, 0x5aa5).waitdone()
+    assert buf[offset] == 0xff
+    assert buf[offset+1] == 0xff
