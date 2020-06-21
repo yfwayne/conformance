@@ -50,10 +50,6 @@ def test_create_sq_with_invalid_prp_offset(nvme0):
     cq.delete()
 
 
-def test_page_base_address_and_offset(nvme0, buf):
-    nvme0.identify(buf).waitdone()
-
-
 @pytest.mark.parametrize("repeat", range(2))
 def test_hello_world(nvme0, nvme0n1, repeat):
     # prepare data buffer and IO queue
@@ -126,3 +122,27 @@ def test_write_mdts(nvme0, mdts):
     sq.delete()
     cq.delete()
     
+
+@pytest.mark.parametrize("offset", [0, 4, 16, 32, 512, 800, 1024, 3000])
+def test_page_offset(nvme0, nvme0n1, qpair, buf, offset):
+    # fill the data
+    write_buf = Buffer(512)
+    nvme0n1.write(qpair, write_buf, 0x5aa5).waitdone()
+
+    # read the data to different offset and check lba
+    buf.offset = offset
+    nvme0n1.read(qpair, buf, 0x5aa5).waitdone()
+    assert buf[offset] == 0xa5
+    assert buf[offset+1] == 0x5a
+
+
+@pytest.mark.parametrize("offset", [1, 2, 3, 501, 502])
+def test_page_offset_invalid(nvme0, nvme0n1, qpair, buf, offset):
+    # fill the data
+    write_buf = Buffer(512)
+    nvme0n1.write(qpair, write_buf, 0x5aa5).waitdone()
+
+    # read the data to different offset and check lba
+    buf.offset = offset
+    with pytest.warns(UserWarning, match="ERROR status: 00/13"):
+        nvme0n1.read(qpair, buf, 0x5aa5).waitdone()
