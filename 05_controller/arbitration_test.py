@@ -80,6 +80,8 @@ def test_ioworker_with_wrr(pcie):
     assert io_count[0]/io_count[1] > 1.8
     assert io_count[0]/io_count[1] < 2.2
 
+    nvme0n1.close()
+    
     
 def test_weighed_round_robin(pcie):
     nvme0 = Controller(pcie, nvme_init_func=nvme_init_wrr)
