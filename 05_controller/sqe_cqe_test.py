@@ -22,9 +22,11 @@ def test_cq_p_phase_bit(nvme0):
     assert cq[1][3] == 0x10003
     assert cq[2][3] == 0
     cq.head = 1
+    time.sleep(0.1)
     assert cq[2][3] == 0x10002
     assert cq[0][3] == 0x10004
     cq.head = 2
+    time.sleep(0.1)
     # p-bit changed to 0
     assert cq[0][3] == 0x00001
 
@@ -45,9 +47,11 @@ def test_cq_sqhd(nvme0):
     assert cq[1][2] == 0x10000
     assert cq[2][2] == 0
     cq.head = 1
+    time.sleep(0.1)
     assert cq[2][2] == 0x10001
     assert cq[0][2] == 0x10001
     cq.head = 2
+    time.sleep(0.1)
     assert cq[0][2] == 0x10000
     assert cq[0][0] == 0
     assert cq[0][1] == 0
