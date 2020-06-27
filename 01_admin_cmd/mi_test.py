@@ -36,6 +36,9 @@ def mi_vpd_read(nvme0, data, offset=0, length=256):
 
     
 def test_vpd_write_and_read(nvme0):
+    if not nvme0.supports(0x1d) or not nvme0.supports(0x1e):
+        pytest.skip("mi commands are not supported")
+        
     write_buf = d.Buffer(256, pvalue=100, ptype=0xbeef)
     read_buf = d.Buffer(256)
     
@@ -52,31 +55,49 @@ def test_vpd_write_and_read(nvme0):
 
 
 def test_reset(nvme0, subsystem):
-    #nvme0.mi_send(7, 0).waitdone()
+    if not nvme0.supports(0x1d) or not nvme0.supports(0x1e):
+        pytest.skip("mi commands are not supported")
+        
+    nvme0.mi_send(7, 0).waitdone()
     nvme0.reset()
 
 
 def test_invalid_operation(nvme0):
+    if not nvme0.supports(0x1d) or not nvme0.supports(0x1e):
+        pytest.skip("mi commands are not supported")
+        
     dword0 = nvme0.mi_send(0xbf).waitdone()
     assert dword0&0xff == 0x3
 
 
 def test_configuration_get_invalid(nvme0):
+    if not nvme0.supports(0x1d) or not nvme0.supports(0x1e):
+        pytest.skip("mi commands are not supported")
+        
     dword0 = nvme0.mi_send(4, 1).waitdone()
     logging.info(hex(dword0))
 
     
 def test_configuration_get_health_status_change(nvme0):
+    if not nvme0.supports(0x1d) or not nvme0.supports(0x1e):
+        pytest.skip("mi commands are not supported")
+        
     dword0 = nvme0.mi_send(4, 2).waitdone()
     logging.info(hex(dword0))
 
 
 def test_configuration_set_health_status_change(nvme0):
+    if not nvme0.supports(0x1d) or not nvme0.supports(0x1e):
+        pytest.skip("mi commands are not supported")
+        
     dword0 = nvme0.mi_send(3, 2, 0).waitdone()
     logging.info(hex(dword0))
 
 
 def test_read_nvme_mi_data_structure_nvm_subsystem_information(nvme0):
+    if not nvme0.supports(0x1d) or not nvme0.supports(0x1e):
+        pytest.skip("mi commands are not supported")
+        
     buf = d.Buffer(0x2000)
     dword0 = nvme0.mi_receive(0, 0, 0, buf).waitdone()
     logging.info(hex(dword0))
@@ -84,6 +105,9 @@ def test_read_nvme_mi_data_structure_nvm_subsystem_information(nvme0):
 
 # use mi_send to read nvme mi data structure: illegal
 def test_read_nvme_mi_data_structure_nvm_subsystem_information_wrong_command(nvme0):
+    if not nvme0.supports(0x1d) or not nvme0.supports(0x1e):
+        pytest.skip("mi commands are not supported")
+        
     buf = d.Buffer(0x2000)
     dword0 = nvme0.mi_send(0, 0, 0, buf).waitdone()
     logging.info(hex(dword0))
@@ -91,6 +115,9 @@ def test_read_nvme_mi_data_structure_nvm_subsystem_information_wrong_command(nvm
     
 
 def test_read_nvme_mi_data_structure_port_information(nvme0):
+    if not nvme0.supports(0x1d) or not nvme0.supports(0x1e):
+        pytest.skip("mi commands are not supported")
+        
     buf = d.Buffer(0x2000)
     dword0 = nvme0.mi_receive(0, 1<<24, 0, buf).waitdone()
     logging.info(hex(dword0))
@@ -99,6 +126,9 @@ def test_read_nvme_mi_data_structure_port_information(nvme0):
 
     
 def test_read_nvme_mi_data_structure_port_information_wrong_port(nvme0):
+    if not nvme0.supports(0x1d) or not nvme0.supports(0x1e):
+        pytest.skip("mi commands are not supported")
+        
     buf = d.Buffer(0x2000)
     dword0 = nvme0.mi_receive(0, (1<<24)+(1<<16), 0, buf).waitdone()
     logging.info(hex(dword0))
