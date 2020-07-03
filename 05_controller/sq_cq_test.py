@@ -41,7 +41,8 @@ def test_sq_wrap_overflow(nvme0):
     sq[0] = SQE(4<<16+0, 1); sq.tail = 1
     sq[1] = SQE(3<<16+0, 1); sq.tail = 0
     sq[0] = SQE(2<<16+0, 1); sq.tail = 0
-    sq[1] = SQE(1<<16+0, 1); sq.tail = 0
+    with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
+        nvme0.waitdone()
 
     # check cq
     time.sleep(0.1)
@@ -85,7 +86,8 @@ def test_sq_doorbell_invalid1(nvme0):
     time.sleep(0.1)
     #Invalid Doorbell Write Value
     with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
-        sq.delete()
+        nvme0.waitdone()
+    sq.delete()
     cq.delete()
 
     
@@ -97,7 +99,8 @@ def test_sq_doorbell_invalid2(nvme0):
     time.sleep(0.1)
     #Invalid Doorbell Write Value
     with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
-        sq.delete()
+        nvme0.waitdone()
+    sq.delete()
     cq.delete()
 
     
@@ -113,7 +116,8 @@ def test_cq_doorbell_invalid(nvme0, head):
     cq.head = 0
     time.sleep(0.1)
     with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
-        cq.delete()
+        nvme0.waitdone()
+    cq.delete()
     
 
 def test_sq_cq_another_sq(nvme0):
