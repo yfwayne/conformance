@@ -1,3 +1,23 @@
+# Copyright (C) 2020 Crane Chu <cranechu@gmail.com>
+# This file is part of pynvme's conformance test
+#
+# pynvme's conformance test is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# pynvme's conformance test is distributed in the hope that it will be
+# useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+# of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with pynvme's conformance test. If not, see
+# <http://www.gnu.org/licenses/>.
+
+# -*- coding: utf-8 -*-
+
+
 import time
 import pytest
 import logging
@@ -6,61 +26,61 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 
-def test_write_large_lba(nvme0, nvme0n1, buf, qpair):
+def test_read_large_lba(nvme0, nvme0n1, buf, qpair):
     ncap = nvme0n1.id_data(15, 8)
     
-    nvme0n1.write(qpair, buf, ncap-1).waitdone()
+    nvme0n1.read(qpair, buf, ncap-1).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
-        nvme0n1.write(qpair, buf, ncap).waitdone()
+        nvme0n1.read(qpair, buf, ncap).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
-        nvme0n1.write(qpair, buf, ncap+1).waitdone()
+        nvme0n1.read(qpair, buf, ncap+1).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
-        nvme0n1.write(qpair, buf, ncap-1, 2).waitdone()
+        nvme0n1.read(qpair, buf, ncap-1, 2).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
-        nvme0n1.write(qpair, buf, 0xffffffff00000000).waitdone()
+        nvme0n1.read(qpair, buf, 0xffffffff00000000).waitdone()
 
 
 @pytest.mark.parametrize("repeat", range(32))
-def test_write_max_namespace_size(nvme0, nvme0n1, buf, repeat, qpair):
+def test_read_max_namespace_size(nvme0, nvme0n1, buf, repeat, qpair):
     nsze = nvme0n1.id_data(7, 0)
     ncap = nvme0n1.id_data(15, 8)
     assert nsze == ncap
     
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
-        nvme0n1.write(qpair, buf, nsze+repeat).waitdone()
+        nvme0n1.read(qpair, buf, nsze+repeat).waitdone()
 
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
-        nvme0n1.write(qpair, buf, 0xffffffff+repeat).waitdone()
+        nvme0n1.read(qpair, buf, 0xffffffff+repeat).waitdone()
     
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
-        nvme0n1.write(qpair, buf, 0xffffffffffffffff-repeat).waitdone()
+        nvme0n1.read(qpair, buf, 0xffffffffffffffff-repeat).waitdone()
     
 
-def test_write_fua(nvme0, nvme0n1, buf, qpair):
+def test_read_fua(nvme0, nvme0n1, buf, qpair):
     for i in range(100):
-        # write with FUA enabled
-        nvme0n1.write(qpair, buf, 0, 8, 1<<30).waitdone()
+        # read with FUA enabled
+        nvme0n1.read(qpair, buf, 0, 8, 1<<30).waitdone()
 
 
-def test_write_bad_number_blocks(nvme0, nvme0n1, qpair):
+def test_read_bad_number_blocks(nvme0, nvme0n1, qpair):
     mdts = nvme0.mdts//512
     buf = Buffer(mdts*512+4096)
 
-    nvme0n1.write(qpair, buf, 0, mdts-1).waitdone()
-    nvme0n1.write(qpair, buf, 0, mdts).waitdone()
+    nvme0n1.read(qpair, buf, 0, mdts-1).waitdone()
+    nvme0n1.read(qpair, buf, 0, mdts).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):
-        nvme0n1.write(qpair, buf, 0, mdts+1).waitdone()
+        nvme0n1.read(qpair, buf, 0, mdts+1).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):
-        nvme0n1.write(qpair, buf, 0, mdts+2).waitdone()
+        nvme0n1.read(qpair, buf, 0, mdts+2).waitdone()
 
     nlb = 1
     while nlb < mdts:
-        nvme0n1.write(qpair, buf, 0, nlb).waitdone()
+        nvme0n1.read(qpair, buf, 0, nlb).waitdone()
         nlb = nlb<<1
 
         
 @pytest.mark.parametrize("ioflag", [0, 0x4000, 0x8000, 0xc000])
-def test_write_valid(nvme0, nvme0n1, ioflag, qpair):
+def test_read_valid(nvme0, nvme0n1, ioflag, qpair):
     # prepare data buffer and IO queue
     read_buf = Buffer(512)
     write_buf = Buffer(512)
@@ -68,21 +88,21 @@ def test_write_valid(nvme0, nvme0n1, ioflag, qpair):
 
     # send write and read command
     def write_cb(cdw0, status1):  # command callback function
-        nvme0n1.read(qpair, read_buf, 0, 1)
-    nvme0n1.write(qpair, write_buf, 0, 1, io_flags=ioflag, cb=write_cb)
+        nvme0n1.read(qpair, read_buf, 0, 1, io_flags=ioflag)
+    nvme0n1.write(qpair, write_buf, 0, 1, cb=write_cb)
 
     # wait commands complete and verify data
     assert read_buf[10:21] != b'hello world'
     qpair.waitdone(2)
     assert read_buf[10:21] == b'hello world'
 
-    
-def test_write_invalid_nsid(nvme0, nvme0n1):
+
+def test_read_invalid_nsid(nvme0, nvme0n1):
     cq = IOCQ(nvme0, 1, 10, PRP())
     sq = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
 
     # first cmd, invalid namespace
-    cmd = SQE(1, 0xff)
+    cmd = SQE(2, 0xff)
     buf = PRP(512)
     cmd.prp1 = buf
     sq[0] = cmd
@@ -95,7 +115,7 @@ def test_write_invalid_nsid(nvme0, nvme0n1):
     cq.delete()
     
     
-def test_write_invalid_nlb(nvme0, nvme0n1):
+def test_read_invalid_nlb(nvme0, nvme0n1):
     ncap = nvme0n1.id_data(15, 8)
     mdts = nvme0.mdts
     
@@ -103,7 +123,7 @@ def test_write_invalid_nlb(nvme0, nvme0n1):
     sq = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
 
     # first cmd, invalid namespace
-    cmd = SQE(1, 1)
+    cmd = SQE(2, 1)
     buf = PRP(512)
     cmd.prp1 = buf
     cmd[12] = mdts//512
@@ -117,7 +137,7 @@ def test_write_invalid_nlb(nvme0, nvme0n1):
     cq.delete()
     
     
-def test_write_invalid_nsid_lba(nvme0, nvme0n1):
+def test_read_invalid_nsid_lba(nvme0, nvme0n1):
     ncap = nvme0n1.id_data(15, 8)
     mdts = nvme0.mdts
     
@@ -125,7 +145,7 @@ def test_write_invalid_nsid_lba(nvme0, nvme0n1):
     sq = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
 
     # first cmd, invalid namespace
-    cmd = SQE(1, 0xff)
+    cmd = SQE(2, 0xff)
     buf = PRP(512)
     cmd.prp1 = buf
     cmd[10] = ncap&0xffffffff
@@ -140,12 +160,12 @@ def test_write_invalid_nsid_lba(nvme0, nvme0n1):
     cq.delete()
     
     
-def test_write_invalid_prp_address_offset(nvme0):
+def test_read_invalid_prp_address_offset(nvme0):
     cq = IOCQ(nvme0, 1, 10, PRP())
     sq = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
 
     # first cmd, invalid prp offset
-    cmd = SQE(1, 1)
+    cmd = SQE(2, 1)
     buf = PRP(4096)
     buf.offset = 1
     cmd.prp1 = buf
