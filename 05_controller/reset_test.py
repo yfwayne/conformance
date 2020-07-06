@@ -26,7 +26,7 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 
-@pytest.mark.parametrize("delay", [1, 0.1, 0.01, 0.001, 0.0001, 0.00001])
+@pytest.mark.parametrize("delay", [1, 0.1, 0.01, 0.001, 0.0001, 0])
 def test_reset_with_outstaning_io(nvme0, nvme0n1, delay, io_count=1000):
     nvme0n1.format(512)
     
@@ -70,7 +70,7 @@ def test_reset_with_outstaning_io(nvme0, nvme0n1, delay, io_count=1000):
     for i in range(io_count):
         cid = cq[i].cid
         dp = buf_list[cq[i].cid].data(3, 0)  # check data pattern
-        logging.debug("cpl %d: cid %d, data pattern %d" % (i, cid, dp))
+        logging.info("cpl %d: cid %d, data pattern %d" % (i, cid, dp))
         assert dp == 0 or dp == cid 
     sq.delete()
     cq.delete()
