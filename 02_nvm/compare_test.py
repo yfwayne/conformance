@@ -52,12 +52,13 @@ def test_compare_lba_0(nvme0, nvme0n1, buf, qpair):
         nvme0n1.compare(qpair, buf, ncap, 0x1000).waitdone()
 
 
-def test_compare_invalid_nsid(nvme0, nvme0n1):
+@pytest.mark.parametrize("nsid", [0, 2, 3, 128, 255, 0xffff, 0xfffffffe, 0xffffffff])
+def test_compare_invalid_nsid(nvme0, nvme0n1, nsid):
     cq = IOCQ(nvme0, 1, 10, PRP())
     sq = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
 
     # first cmd compare, invalid namespace
-    cmd = SQE(5, 0xff)
+    cmd = SQE(5, nsid)
     buf = PRP(512)
     cmd.prp1 = buf
     sq[0] = cmd
@@ -68,4 +69,23 @@ def test_compare_invalid_nsid(nvme0, nvme0n1):
 
     sq.delete()
     cq.delete()
+    
+
+def test_fused_operations(nvme0, nvme0n1, qpair, buf):
+    # compare and write
+    nvme0n1.write(qpair, buf, 8).waitdone()
+    nvme0n1.compare(qpair, buf, 8).waitdone()
+
+    # fused
+    nvme0n1.send_cmd(5|(1<<8), qpair, buf, 1, 8, 0, 0)
+    nvme0n1.send_cmd(1|(1<<9), qpair, buf, 1, 8, 0, 0)
+    qpair.waitdone(2)
+
+    # atomic: first cmd should be timeout
+    with pytest.warns(UserWarning, match="ERROR status: 00/0a"):
+        nvme0n1.send_cmd(1|(1<<8), qpair, buf, 1, 8, 0, 0).waitdone()
+    with pytest.warns(UserWarning, match="ERROR status: 00/0a"):
+        nvme0n1.send_cmd(5|(1<<9), qpair, buf, 1, 8, 0, 0).waitdone()
+
+    qpair.delete()
     
