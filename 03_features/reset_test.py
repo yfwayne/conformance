@@ -97,7 +97,7 @@ def test_reset_with_outstanding_io(nvme0, nvme0n1, delay, io_count=1000):
     logging.debug("read done")
 
     # data verify
-    time.sleep(1)
+    time.sleep(3)
     assert cq[io_count-1].p != 0
     for i in range(io_count):
         cid = cq[i].cid
