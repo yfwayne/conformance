@@ -52,6 +52,8 @@ def hmb(nvme0):
 
     # disable hmb
     nvme0.setfeatures(0x0d, cdw11=0).waitdone()
+    del hmb_buf
+    del hmb_list_buf
 
 
 def test_single_hmb(nvme0, nvme0n1, hmb):
@@ -137,7 +139,7 @@ def test_multiple_hmb_buffer(nvme0, nvme0n1, buf):
                       cdw12=hmb_size,
                       cdw13=hmb_list_phys&0xffffffff,
                       cdw14=hmb_list_phys>>32,
-                      cdw15=1).waitdone()
+                      cdw15=hmb_size).waitdone()
     
     for i in range(3):
         logging.info(i)
