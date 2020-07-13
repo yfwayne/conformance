@@ -40,7 +40,7 @@ def test_dst(nvme0, nsid, stc):
     while buf[0]:
         time.sleep(1)
         nvme0.getlogpage(0x6, buf, 32).waitdone()
-        logging.info("current dst progress percentage: %d%%" % buf[1])
+        logging.info("current dst progress percentage: %d%%" % (buf[1] if(buf[1]) else 100))
 
 
 @pytest.mark.parametrize("nsid", [2, 3, 8, 10, 0xff, 0xfffffffe])
@@ -75,7 +75,7 @@ def test_dst_in_progress(nvme0, nsid, stc):
     while buf[0]:
         time.sleep(1)
         nvme0.getlogpage(0x6, buf, 32).waitdone()
-        logging.info("current dst progress percentage: %d%%" % buf[1])
+        logging.info("current dst progress percentage: %d%%" % (buf[1] if(buf[1]) else 100))
 
         
 @pytest.mark.parametrize("nsid", [0, 1, 0xffffffff])
