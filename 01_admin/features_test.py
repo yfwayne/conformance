@@ -63,7 +63,7 @@ def test_features_sel_01(nvme0, new_value=0x7):
     new_config = nvme0.getfeatures(1, sel=0).waitdone()
     logging.debug("%x" % new_config)
     logging.debug("%x" % orig_config)
-    assert new_config == orig_config|0x07
+    assert new_config == orig_config|new_value
     new_config = nvme0.getfeatures(1, sel=1).waitdone()
     logging.debug("%x" % orig_config)
     assert new_config == orig_config
