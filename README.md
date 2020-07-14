@@ -7,3 +7,10 @@ git clone https://github.com/pynvme/conformance scritps/conformance
 make test TESTS=scripts/conformance pciaddr=0000:01:00.0
 less test_0000:01:00.0.log
 ```
+
+## contributing
+
+https://www.digitalocean.com/community/tutorials/how-to-create-a-pull-request-on-github
+
+## CONTRIBUTORS
+
