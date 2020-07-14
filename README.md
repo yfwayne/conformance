@@ -1,6 +1,6 @@
 # conformance
 
-download, test, report:
+download, test, and get the log:
 ```shell
 cd pynvme
 git clone https://github.com/pynvme/conformance scritps/conformance
