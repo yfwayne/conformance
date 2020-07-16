@@ -189,4 +189,7 @@ def test_getlogpage_persistent_event_log(nvme0):
     if not (nvme0.id_data(261)&0x10):
         pytest.skip("feature sv is not supported")
 
-    pass
+
+def test_getlogpage_firmware_slot_info_nsid_1(nvme0, buf):
+    with pytest.warns(UserWarning, match="ERROR status: 00/02"):
+        nvme0.getlogpage(3, buf, 512, nsid=1).waitdone()
