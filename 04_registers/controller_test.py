@@ -37,7 +37,7 @@ def test_controller_cap(nvme0):
 
     
 def test_controller_version(nvme0):
-    logging.info("cap: 0x%x" % nvme0[8])
+    logging.info("ver: 0x%x" % nvme0[8])
     assert (nvme0[8]>>16) == 1
 
 
