@@ -191,5 +191,7 @@ def test_getlogpage_persistent_event_log(nvme0):
 
 
 def test_getlogpage_firmware_slot_info_nsid_1(nvme0, buf):
+    nvme0.getlogpage(3, buf, 512, nsid=0).waitdone()
+    nvme0.getlogpage(3, buf, 512, nsid=0xffffffff).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):
         nvme0.getlogpage(3, buf, 512, nsid=1).waitdone()
