@@ -24,12 +24,13 @@ import logging
 from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 
 
-def test_format_all_basic(nvme0):
+def test_format_all_basic(nvme0, nvme0n1):
     if not nvme0.supports(0x80):
         pytest.skip("format is not support")
 
     orig_timeout = nvme0.timeout
     nvme0.timeout = 100000
+    nvme0n1.format(512)
     
     nvme0.format(0).waitdone()
     nvme0.format(0, 0).waitdone()
@@ -44,6 +45,7 @@ def test_format_all_basic(nvme0):
     with pytest.warns(UserWarning, match="ERROR status: 00/0b"):
         nvme0.format(0, 1, 0xfffffffb).waitdone()
 
+    nvme0n1.format(512)
     nvme0.timeout = orig_timeout
         
 
@@ -55,8 +57,8 @@ def test_format_verify_data(nvme0, nvme0n1, verify, qpair):
     nvme0.timeout = 100000
         
     # prepare data buffer and IO queue
-    read_buf = Buffer(512)
-    write_buf = Buffer(512)
+    read_buf = Buffer(4096)
+    write_buf = Buffer(4096)
     write_buf[10:21] = b'hello world'
 
     nvme0n1.write(qpair, write_buf, 0, 1).waitdone()
@@ -97,6 +99,7 @@ def test_format_verify_data(nvme0, nvme0n1, verify, qpair):
         nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
         assert read_buf[10:21] != b'hello world'
 
+    nvme0n1.format(512)
     nvme0.timeout = orig_timeout
         
 
@@ -108,8 +111,8 @@ def test_format_invalid_ses(nvme0, nvme0n1, verify, qpair):
     nvme0.timeout = 100000
         
     # prepare data buffer and IO queue
-    read_buf = Buffer(512)
-    write_buf = Buffer(512)
+    read_buf = Buffer(4096)
+    write_buf = Buffer(4096)
     write_buf[10:21] = b'hello world'
 
     nvme0n1.write(qpair, write_buf, 0, 1).waitdone()
@@ -120,6 +123,7 @@ def test_format_invalid_ses(nvme0, nvme0n1, verify, qpair):
     nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] == b'hello world'
     
+    nvme0n1.format(512)
     nvme0.timeout = orig_timeout
 
     
@@ -131,8 +135,8 @@ def test_format_invalid_lbaf(nvme0, nvme0n1, verify, qpair):
     nvme0.timeout = 100000
         
     # prepare data buffer and IO queue
-    read_buf = Buffer(512)
-    write_buf = Buffer(512)
+    read_buf = Buffer(4096)
+    write_buf = Buffer(4096)
     write_buf[10:21] = b'hello world'
 
     nvme0n1.write(qpair, write_buf, 0, 1).waitdone()
@@ -149,5 +153,6 @@ def test_format_invalid_lbaf(nvme0, nvme0n1, verify, qpair):
     nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] == b'hello world'        
 
+    nvme0n1.format(512)
     nvme0.timeout = orig_timeout
     
