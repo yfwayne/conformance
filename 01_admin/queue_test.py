@@ -39,9 +39,8 @@ def ncqa(nvme0):
 @pytest.fixture(scope="function")
 def mqes(nvme0):
     num_of_entry = (nvme0.cap&0xffff) + 1
-    logging.info("number of queue: %d" % num_of_entry)
+    logging.info("number of entry: %d" % num_of_entry)
     return num_of_entry
-
 
 
 def test_create_cq_basic_operation(nvme0, nvme0n1, buf):
