@@ -32,9 +32,9 @@ def hmb(nvme0):
     if hmb_size == 0:
         pytest.skip("hmb is not supported")
     
-    hmb_buf = d.Buffer(4096*hmb_size)
+    hmb_buf = Buffer(4096*hmb_size)
     assert hmb_buf
-    hmb_list_buf = d.Buffer(4096)
+    hmb_list_buf = Buffer(4096)
     assert hmb_list_buf
         
     hmb_list_buf[0:8] = hmb_buf.phys_addr.to_bytes(8, 'little')
