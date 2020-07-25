@@ -58,21 +58,28 @@ def nvme_init_wrr(nvme0):
     nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
     nvme0.getfeatures(0x7).waitdone()
 
-
-def test_ioworker_with_wrr(pcie):
-    nvme0 = Controller(pcie, nvme_init_func=nvme_init_wrr)
+@pytest.fixture()
+def nvme0(pcie):
+    return Controller(pcie, nvme_init_func=nvme_init_wrr)
     
+@pytest.fixture()
+def nvme0n1(nvme0):
+    ret = Namespace(nvme0, 1, 0x10000)
+    yield ret
+    ret.close()
+
+    
+def test_ioworker_with_wrr(nvme0, nvme0n1):
     if (nvme0.cap>>17) & 0x1 == 0:
         pytest.skip("WRR is not supported")
+
+    nvme0n1.format(512)
 
     # 8:4:2
     assert nvme0[0x14] == 0x00460801
     nvme0.setfeatures(1, cdw11=0x07030103).waitdone()
     cdw0 = nvme0.getfeatures(1, cdw11=0x7313).waitdone()
     assert cdw0 == 0x07030103
-
-    nvme0n1 = Namespace(nvme0, 1, 0x10000)
-    nvme0n1.format(512)
 
     l = []
     for i in range(3):
@@ -100,12 +107,8 @@ def test_ioworker_with_wrr(pcie):
     assert io_count[0]/io_count[1] > 1.8
     assert io_count[0]/io_count[1] < 2.2
 
-    nvme0n1.close()
     
-    
-def test_weighed_round_robin(pcie):
-    nvme0 = Controller(pcie, nvme_init_func=nvme_init_wrr)
-    
+def test_weighed_round_robin(nvme0):
     if (nvme0.cap>>17) & 0x1 == 0:
         pytest.skip("WRR is not supported")
 
