@@ -72,20 +72,42 @@ def test_compare_invalid_nsid(nvme0, nvme0n1, nsid):
     
 
 def test_fused_operations(nvme0, nvme0n1, qpair, buf):
-    # compare and write
+    # check if fused commands supported
+    if nvme0.id_data(523,522) == 0:
+        pytest.skip("fused command is not supported")
+
+    # not fused,compare and write as separate command
     nvme0n1.write(qpair, buf, 8).waitdone()
     nvme0n1.compare(qpair, buf, 8).waitdone()
+    # check if there is any Media and Data Integrity Errors
+    with pytest.warns(UserWarning, match="ERROR status: 02/85"):
+        logging.info("Compare failure!")
 
-    # fused
+    # fused with correct order, compare 1st as the 1st cmd 
     nvme0n1.send_cmd(5|(1<<8), qpair, buf, 1, 8, 0, 0)
     nvme0n1.send_cmd(1|(1<<9), qpair, buf, 1, 8, 0, 0)
     qpair.waitdone(2)
-
+    
     # atomic: first cmd should be timeout
     with pytest.warns(UserWarning, match="ERROR status: 00/0a"):
+        # wrong order: send write cmd 1st as 1st cmd, should abort
         nvme0n1.send_cmd(1|(1<<8), qpair, buf, 1, 8, 0, 0).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/0a"):
+        # wrong order: send compare cmd 2nd as 2nd cmd, should abort
         nvme0n1.send_cmd(5|(1<<9), qpair, buf, 1, 8, 0, 0).waitdone()
 
+    qpair.delete()
+
+def test_fused_cmd_not_supported(nvme0, nvme0n1, qpair, buf):
+    # check if fused commands supported
+    if nvme0.id_data(523,522) == 0:
+        logging.info("fused command is not supported")
+
+        # if fuse not supported, fuse command should abort with invalid field
+        nvme0n1.send_cmd(5|(1<<8), qpair, buf, 1, 8, 0, 0)
+        nvme0n1.send_cmd(1|(1<<9), qpair, buf, 1, 8, 0, 0)
+        qpair.waitdone(2)
+        with pytest.warns(UserWarning, match="ERROR status: 00/02"):
+            logging.info("fused command is not supported, abort!") 
     qpair.delete()
     
