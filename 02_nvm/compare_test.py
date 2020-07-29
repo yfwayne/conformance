@@ -55,9 +55,9 @@ def test_compare_lba_0(nvme0, nvme0n1, buf, qpair):
     with pytest.warns(UserWarning, match="ERROR status: 02/85"):
         buf[0] += 1
         nvme0n1.compare(qpair, buf, 0).waitdone()
-    buf[0] = orig                                                       
-    with pytest.warns(UserWarning, match=("ERROR status: 02/85")):          
-        nvme0n1.compare(qpair, buf, 0, 2).waitdone()  
+    buf[0] = orig
+    with pytest.warns(UserWarning, match=("ERROR status: 02/85")):
+        nvme0n1.compare(qpair, buf, 0, 2).waitdone()
 
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
         nvme0n1.compare(qpair, buf, ncap).waitdone()
@@ -68,8 +68,8 @@ def test_compare_lba_0(nvme0, nvme0n1, buf, qpair):
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
         nvme0n1.compare(qpair, buf, 0x100000000).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
-        nvme0n1.compare(qpair, buf, ncap-1, 2).waitdone()  
-    with pytest.warns(UserWarning, match="ERROR status: 00/(02|80)"):        
+        nvme0n1.compare(qpair, buf, ncap-1, 2).waitdone()
+    with pytest.warns(UserWarning, match="ERROR status: 00/(02|80)"):
         nvme0n1.compare(qpair, buf, ncap, 0x1000).waitdone()
 
 
@@ -83,7 +83,7 @@ def test_compare_invalid_nsid(nvme0, nvme0n1, nsid, cq, sq):
     sq.tail = 1
     time.sleep(0.1)
     status = (cq[0][3]>>17)&0x7ff
-    assert status == 0x000b
+    assert status == 0x000b or status == 0x0002
 
 
 def test_fused_operations(nvme0, nvme0n1, qpair, buf):
@@ -98,11 +98,11 @@ def test_fused_operations(nvme0, nvme0n1, qpair, buf):
     with pytest.warns(UserWarning, match="ERROR status: 02/85"):
         logging.info("Compare failure!")
 
-    # fused with correct order, compare 1st as the 1st cmd 
+    # fused with correct order, compare 1st as the 1st cmd
     nvme0n1.send_cmd(5|(1<<8), qpair, buf, 1, 8, 0, 0)
     nvme0n1.send_cmd(1|(1<<9), qpair, buf, 1, 8, 0, 0)
     qpair.waitdone(2)
-    
+
     # atomic: first cmd should be timeout
     with pytest.warns(UserWarning, match="ERROR status: 00/0a"):
         # wrong order: send write cmd 1st as 1st cmd, should abort
@@ -111,7 +111,7 @@ def test_fused_operations(nvme0, nvme0n1, qpair, buf):
         # wrong order: send compare cmd 2nd as 2nd cmd, should abort
         nvme0n1.send_cmd(5|(1<<9), qpair, buf, 1, 8, 0, 0).waitdone()
 
-        
+
 def test_fused_cmd_not_supported(nvme0, nvme0n1, qpair, buf):
     # check if fused commands supported
     if nvme0.id_data(523, 522) == 0:
@@ -119,11 +119,10 @@ def test_fused_cmd_not_supported(nvme0, nvme0n1, qpair, buf):
 
         # write to init buffer before compare
         nvme0n1.write(qpair, buf, 8).waitdone()
-        
+
         # if fuse not supported, fuse command should abort with invalid field
         logging.info("fused command is not supported, abort!")
         with pytest.warns(UserWarning, match="ERROR status: 00/02"):
             nvme0n1.send_cmd(5|(1<<8), qpair, buf, 1, 8, 0, 0)
             nvme0n1.send_cmd(1|(1<<9), qpair, buf, 1, 8, 0, 0)
             qpair.waitdone(2)
-    
