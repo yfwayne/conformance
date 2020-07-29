@@ -61,6 +61,7 @@ def test_single_hmb(nvme0, nvme0n1, hmb):
     if hmb_size == 0:
         pytest.skip("hmb is not supported")
         
+    logging.info(hmb_size)
     for i in range(3):
         logging.info(i)
         with nvme0n1.ioworker(io_size=8,
@@ -126,7 +127,7 @@ def test_multiple_hmb_buffer(nvme0, nvme0n1, buf):
     hmb_list_buf = Buffer(hmb_size*16)
     assert hmb_list_buf
     for i in range(hmb_size):
-        hmb_buf = Buffer(4096*hmb_size)
+        hmb_buf = Buffer()
         assert hmb_buf
         hmb_buffer_list.append(hmb_buf)
         hmb_list_buf[16*i+0 : 16*i+8] = hmb_buf.phys_addr.to_bytes(8, 'little')
