@@ -26,7 +26,17 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 
-# TODO: lba_start=1, lba_step=3, lba_count=3
+@pytest.fixture()
+def cq(nvme0):
+    ret = IOCQ(nvme0, 1, 10, PRP())
+    yield ret
+    ret.delete()
+
+@pytest.fixture()
+def sq(nvme0, cq):
+    ret = IOSQ(nvme0, 1, 10, PRP(), cq.id)
+    yield ret
+    ret.delete()
 
 
 def test_write_uncorrectable_large_lba(nvme0, nvme0n1, buf, qpair):
@@ -102,13 +112,10 @@ def test_write_uncorrectable_read(nvme0, nvme0n1, repeat, qpair,
         assert read_buf[i*512 + 10] == repeat
 
 
-def test_write_uncorrectable_invalid_nlb(nvme0, nvme0n1):
+def test_write_uncorrectable_invalid_nlb(nvme0, nvme0n1, cq, sq):
     ncap = nvme0n1.id_data(15, 8)
     mdts = nvme0.mdts
     
-    cq = IOCQ(nvme0, 1, 10, PRP())
-    sq = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
-
     # first cmd, invalid namespace
     cmd = SQE(4, 1)
     cmd[12] = mdts//512
@@ -117,7 +124,4 @@ def test_write_uncorrectable_invalid_nlb(nvme0, nvme0n1):
     time.sleep(0.1)
     status = (cq[0][3]>>17)&0x7ff
     assert status == 0
-
-    sq.delete()
-    cq.delete()
     

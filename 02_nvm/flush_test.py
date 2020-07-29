@@ -26,6 +26,19 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 
+@pytest.fixture()
+def cq(nvme0):
+    ret = IOCQ(nvme0, 1, 10, PRP())
+    yield ret
+    ret.delete()
+
+@pytest.fixture()
+def sq(nvme0, cq):
+    ret = IOSQ(nvme0, 1, 10, PRP(), cq.id)
+    yield ret
+    ret.delete()
+
+    
 def test_flush_with_read_write(nvme0, nvme0n1, qpair):
     # prepare data buffer and IO queue
     read_buf = Buffer(512)
@@ -39,10 +52,7 @@ def test_flush_with_read_write(nvme0, nvme0n1, qpair):
     assert read_buf[10:21] == b'hello world'
 
 
-def test_read_invalid_nsid(nvme0, nvme0n1):
-    cq = IOCQ(nvme0, 1, 10, PRP())
-    sq = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
-
+def test_read_invalid_nsid(nvme0, nvme0n1, cq, sq):
     # first cmd, invalid namespace
     cmd = SQE(0, 0xff)
     sq[0] = cmd
@@ -51,11 +61,8 @@ def test_read_invalid_nsid(nvme0, nvme0n1):
     status = (cq[0][3]>>17)&0x7ff
     assert status == 0x000b
 
-    sq.delete()
-    cq.delete()
     
-    
-def test_read_all_namespace(nvme0, nvme0n1):
+def test_read_all_namespace(nvme0, nvme0n1, cq, sq):
     cq = IOCQ(nvme0, 1, 10, PRP())
     sq = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
 
@@ -67,7 +74,3 @@ def test_read_all_namespace(nvme0, nvme0n1):
     status = (cq[0][3]>>17)&0x7ff
     assert status == 0
 
-    sq.delete()
-    cq.delete()
-    
-    
