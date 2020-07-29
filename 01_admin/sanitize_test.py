@@ -49,7 +49,7 @@ def test_sanitize_operations_basic(nvme0, nvme0n1, buf):
     assert buf.data(3, 2) & 0x7 == 1
 
 
-def test_sanitize_operations_powercycle(nvme0, nvme0n1, buf, subsystem, qpair):
+def test_sanitize_operations_powercycle(nvme0, buf, subsystem):
     if nvme0.id_data(331, 328) == 0:  #L9
         pytest.skip("sanitize operation is not supported")  #L10
 
@@ -77,6 +77,11 @@ def test_sanitize_operations_powercycle(nvme0, nvme0n1, buf, subsystem, qpair):
     nvme0.getlogpage(0x81, buf, 20).waitdone()
     assert buf.data(3, 2) & 0x7 == 1
 
+    # recover power mode
+    nvme0.setfeatures(0x2, cdw11=0).waitdone()
+
+    
+def test_sanitize_operations_powercycle_post(nvme0, nvme0n1, buf, subsystem, qpair):
     logging.info("verify data after sanitize")
     nvme0n1.read(qpair, buf, 11, 1).waitdone()
     assert buf[0] == 0
@@ -87,10 +92,7 @@ def test_sanitize_operations_powercycle(nvme0, nvme0n1, buf, subsystem, qpair):
                      region_start=0, region_end=256*1024*8, # 1GB space
                      lba_random=False, qdepth=16,
                      read_percentage=100, time=10).start().close()
-
-    # recover power mode
-    nvme0.setfeatures(0x2, cdw11=0).waitdone()
-
+    
     
 def test_write_in_sanitize_operations(nvme0, nvme0n1, buf, qpair):
     if nvme0.id_data(331, 328) == 0:  #L9
