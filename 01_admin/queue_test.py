@@ -43,12 +43,10 @@ def mqes(nvme0):
     return num_of_entry
 
 
-def test_create_cq_basic_operation(nvme0, nvme0n1, buf):
-    q = Qpair(nvme0, 16)
+def test_create_cq_basic_operation(nvme0, nvme0n1, buf, qpair):
     for i in range(10):
-        nvme0n1.read(q, buf, 0)
-    q.waitdone(10)
-    q.delete()
+        nvme0n1.read(qpair, buf, 0)
+    qpair.waitdone(10)
     
     
 def test_create_cq_with_invalid_id(nvme0, ncqa):
@@ -267,16 +265,16 @@ def test_create_sq_with_invalid_cqid(nvme0, mqes):
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         IOSQ(nvme0, 1, mqes, PRP(4096), cqid=0)
     
-    with pytest.warns(UserWarning, match="ERROR status: 01/01"):
+    with pytest.warns(UserWarning, match="ERROR status: 01/00"):
         IOSQ(nvme0, 1, mqes, PRP(4096), cqid=0xffff)
     
-    with pytest.warns(UserWarning, match="ERROR status: 01/01"):
+    with pytest.warns(UserWarning, match="ERROR status: 01/00"):
         IOSQ(nvme0, 1, mqes, PRP(4096), cqid=mqes)
     
-    with pytest.warns(UserWarning, match="ERROR status: 01/01"):
+    with pytest.warns(UserWarning, match="ERROR status: 01/00"):
         IOSQ(nvme0, 1, mqes, PRP(4096), cqid=mqes+1)
 
-    with pytest.warns(UserWarning, match="ERROR status: 01/01"):
+    with pytest.warns(UserWarning, match="ERROR status: 01/00"):
         IOSQ(nvme0, 1, mqes, PRP(4096), cqid=mqes+0xff)
     
 
