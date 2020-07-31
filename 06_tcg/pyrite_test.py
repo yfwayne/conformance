@@ -30,7 +30,7 @@ url = 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Password
 def test_pyrite_discovery0(nvme0):
     buf = Buffer(2048)
     nvme0.security_receive(buf, 1).waitdone()
-    print(buf.dump(256))
+    logging.info(buf.dump(256))
 
     
 @pytest.mark.skip("tcg")
