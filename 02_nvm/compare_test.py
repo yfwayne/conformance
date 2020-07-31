@@ -43,7 +43,7 @@ def test_compare_lba_0(nvme0, nvme0n1, buf, qpair):
         buf[0] += 1
         nvme0n1.compare(qpair, buf, 0).waitdone()
     buf[0] = orig                                                       
-    with pytest.warns(UserWarning, match=("ERROR status: 02/85")):          
+    with pytest.warns(UserWarning, match="ERROR status: 02/85"):          
         nvme0n1.compare(qpair, buf, 0, 2).waitdone()  
 
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
