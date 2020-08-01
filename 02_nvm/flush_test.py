@@ -52,7 +52,7 @@ def test_flush_with_read_write(nvme0, nvme0n1, qpair):
     assert read_buf[10:21] == b'hello world'
 
 
-def test_read_invalid_nsid(nvme0, nvme0n1, cq, sq):
+def test_flush_invalid_nsid(nvme0, nvme0n1, cq, sq):
     # first cmd, invalid namespace
     cmd = SQE(0, 0xff)
     sq[0] = cmd
@@ -62,12 +62,24 @@ def test_read_invalid_nsid(nvme0, nvme0n1, cq, sq):
     assert status == 0x000b
 
     
-def test_read_all_namespace(nvme0, nvme0n1, cq, sq):
-    # first cmd, invalid namespace
+def test_flush_all_namespace(nvme0, nvme0n1, cq, sq):
+    # first cmd, all namespace
     cmd = SQE(0, 0xffffffff)
     sq[0] = cmd
     sq.tail = 1
     time.sleep(0.1)
     status = (cq[0][3]>>17)&0x7ff
-    assert status == 0
+    
+    #If bits 2:1 are set to 11b in the VWC field (refer to Figure 247) and the specified NSID is FFFFFFFFh, then
+    #the Flush command applies to all namespaces attached to the controller processing the Flush command.
+    #If bits 2:1 are set to 10b in the VWC field and the specified NSID is FFFFFFFFh, then the controller fails
+    #the command with status code Invalid Namespace or Format. If bits 2:1 are cleared to 00b in the VWC field,
+    #then the controller behavior if the specified NSID is FFFFFFFFh is not indicated. 
+    vwc = nvme0.id_data(525)
+    if (vwc>>1) == 3:   
+        assert status == 0
+    elif (vwc>>1) == 2:
+        assert status == 0x000b
+    else:
+        pass
 
