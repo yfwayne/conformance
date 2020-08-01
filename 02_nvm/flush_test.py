@@ -63,9 +63,6 @@ def test_read_invalid_nsid(nvme0, nvme0n1, cq, sq):
 
     
 def test_read_all_namespace(nvme0, nvme0n1, cq, sq):
-    cq = IOCQ(nvme0, 1, 10, PRP())
-    sq = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
-
     # first cmd, invalid namespace
     cmd = SQE(0, 0xffffffff)
     sq[0] = cmd
