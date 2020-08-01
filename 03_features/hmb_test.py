@@ -72,7 +72,7 @@ def test_single_hmb(nvme0, nvme0n1, hmb):
             pass
 
         
-def test_reset_with_hmb_disabled(nvme0, nvme0n1, buf):
+def _test_reset_with_hmb_disabled(nvme0, nvme0n1, buf):
     hmb_size = nvme0.id_data(275, 272)
     if hmb_size == 0:
         pytest.skip("hmb is not supported")
