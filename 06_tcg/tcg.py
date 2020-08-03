@@ -47,12 +47,17 @@ comid = 0
 class Command(Buffer):
     def start_anybody_adminsp_session(self):
         global comid
-        self[:4] = struct.pack('>IHH', 0, comid, 0)
+        self[:8] = struct.pack('>IHH', 0, comid, 0)
         self[0x38:] = struct.pack('>B', 0xF8)
         self[0x39:] = struct.pack('>BQ', 0xA8, 0xff)
         self[0x39+9:] = struct.pack('>BQ', 0xA8, 0xff02)
-        self[0x39+9:] = struct.pack('>BQ', 0xA8, 0xff02)        
-        
+        self[0x39+9+9:] = struct.pack('>BBB', 0xF0, 0x81, 0x69)
+        self[0x39+9+9+3:] = struct.pack('>BBBBBBBBB', 0xA8, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x01)
+        self[0x39+9+9+3+9:] = struct.pack('>BB', 1, 0xf1)
+        self[0x39+9+9+3+9+2:] = struct.pack('>BBBBBB', 0xf9, 0xf0, 0, 0, 0, 0xf1)
+        self[16:] = struct.pack('>I', 0x4c)
+        self[40:] = struct.pack('>I', 0x34)
+        self[52:] = struct.pack('>I', 0x27)
         
 
 class Responce(Buffer):
@@ -86,12 +91,18 @@ def test_pyrite_discovery0(nvme0):
     
 def test_start_anybody_session(nvme0):
     r = Responce()
-    nvme0.security_receive(r, 1).waitdone()
+    nvme0.security_receive(r, 1, size=2048).waitdone()
     r.level0_discovery()
     
     c = Command()
     c.start_anybody_adminsp_session()
     logging.info(c.dump(256))
+    
+    global comid
+    nvme0.security_send(c, comid, size=2048).waitdone()
+    nvme0.security_receive(r, comid, size=2048).waitdone()
+    logging.info(r.dump(256))
+    
     
     
 
