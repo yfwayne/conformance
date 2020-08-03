@@ -70,11 +70,11 @@ def test_flush_all_namespace(nvme0, nvme0n1, cq, sq):
     time.sleep(0.1)
     status = (cq[0][3]>>17)&0x7ff
     
-    #If bits 2:1 are set to 11b in the VWC field (refer to Figure 247) and the specified NSID is FFFFFFFFh, then
-    #the Flush command applies to all namespaces attached to the controller processing the Flush command.
-    #If bits 2:1 are set to 10b in the VWC field and the specified NSID is FFFFFFFFh, then the controller fails
-    #the command with status code Invalid Namespace or Format. If bits 2:1 are cleared to 00b in the VWC field,
-    #then the controller behavior if the specified NSID is FFFFFFFFh is not indicated. 
+    # NVMe1.4 page258: If bits 2:1 are set to 11b in the VWC field (refer to Figure 247) and the specified NSID is FFFFFFFFh, then
+    # the Flush command applies to all namespaces attached to the controller processing the Flush command.
+    # If bits 2:1 are set to 10b in the VWC field and the specified NSID is FFFFFFFFh, then the controller fails
+    # the command with status code Invalid Namespace or Format. If bits 2:1 are cleared to 00b in the VWC field,
+    # then the controller behavior if the specified NSID is FFFFFFFFh is not indicated. 
     vwc = nvme0.id_data(525)
     if (vwc>>1) == 3:   
         assert status == 0
@@ -83,3 +83,13 @@ def test_flush_all_namespace(nvme0, nvme0n1, cq, sq):
     else:
         pass
 
+def test_flush_vwc_check(nvme0):
+    # NVMe1.4 page258: Controllers compliant with
+    # versions 1.4 and later of this specification shall not set bits 2:1 in the VWC field to the value of 00b.
+    vwc = nvme0.id_data(525)
+    vs = nvme0[8]
+    logging.info("%d" % vs)
+    if vs >= 66560:
+        assert (vwc>>1) != 0
+    else:
+        pass
