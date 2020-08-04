@@ -89,7 +89,7 @@ def test_flush_vwc_check(nvme0):
     vwc = nvme0.id_data(525)
     vs = nvme0[8]
     logging.info("%d" % vs)
-    if vs >= 66560:
+    if vs >= 0x010400:
         assert (vwc>>1) != 0
     else:
         pass
