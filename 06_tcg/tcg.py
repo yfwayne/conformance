@@ -209,6 +209,11 @@ class Command(Buffer):
         self.append_u8(len(key))
         self.append_token_list(*list(key))
         
+    def append_token_key_2(self, key):
+        logging.info(key)
+        self.append_u8(0xa0 + len(key))
+        self.append_token_list(*list(key))
+        
     def start_anybody_adminsp_session(self):
         self.append_token_call()
         self.append_token_uid(OPAL_UID.SMUID)
@@ -228,7 +233,6 @@ class Command(Buffer):
         self.append_token_list(0xf0, 0x81, 0x69)
         self.append_token_uid(OPAL_UID.ADMINSP)
         self.append_u8(1)
-        
         self.append_token_list(OPAL_TOKEN.STARTNAME, 0)
         self.append_token_key(key)
         self.append_token_list(OPAL_TOKEN.ENDNAME,
@@ -237,11 +241,32 @@ class Command(Buffer):
         self.append_token_uid(OPAL_UID.SID)
         self.append_token_list(OPAL_TOKEN.ENDNAME,
                                OPAL_TOKEN.ENDLIST)
-
         self.append_token_list(0xf9, 0xf0, 0, 0, 0, 0xf1)
         self[16:] = struct.pack('>I', 0x6c)
         self[40:] = struct.pack('>I', 0x54)
         self[52:] = struct.pack('>I', 0x48)
+
+    def set_sid_cpin_pin(self, tsn, hsn, new_passwd):
+        self.append_token_call()
+        self.append_token_uid(OPAL_UID.C_PIN_SID)
+        self.append_token_method(OPAL_METHOD.SET)
+        self.append_token_list(OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.VALUES,
+                               OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.STARTNAME,
+                               OPAL_TOKEN.PIN)
+        self.append_token_key_2(new_passwd)
+        self.append_token_list(OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST,
+                               OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST)
+        self.append_token_list(0xf9, 0xf0, 0, 0, 0, 0xf1)
+        self[16:] = struct.pack('>I', 0x50)
+        self[20:] = struct.pack('>I', hsn)
+        self[24:] = struct.pack('>I', tsn)
+        self[40:] = struct.pack('>I', 0x38)
+        self[52:] = struct.pack('>I', 0x2a)
         
     def get_msid_cpin_pin(self, tsn, hsn):
         self.append_token_call()
@@ -314,7 +339,7 @@ def test_pyrite_discovery0(nvme0):
     r.level0_discovery()
 
     
-def test_take_ownership(subsystem, nvme0):
+def test_take_ownership(subsystem, nvme0, new_passwd=b'123456'):
     subsystem.power_cycle()
     nvme0.reset()
     
@@ -361,3 +386,19 @@ def test_take_ownership(subsystem, nvme0):
     tsn, hsn = r.start_session()
     logging.info("hsn 0x%x, tsn 0x%x" % (tsn, hsn))
 
+    c = Command(comid)
+    c.set_sid_cpin_pin(tsn, hsn, new_passwd)
+    logging.info(c.dump(256))
+    
+    nvme0.security_send(c, comid, size=2048).waitdone()
+    nvme0.security_receive(r, comid, size=2048).waitdone()
+    logging.info(r.dump(256))
+
+    c = Command(comid)
+    c.end_session(tsn, hsn)
+    logging.info(c.dump(256))
+    
+    nvme0.security_send(c, comid, size=2048).waitdone()
+    nvme0.security_receive(r, comid, size=2048).waitdone()
+    logging.info(r.dump(256))
+    
