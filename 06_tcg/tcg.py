@@ -199,8 +199,15 @@ class Command(Buffer):
         self.append_8_u8(opal_method_table[m])
 
     def append_token_list(self, *val_list):
+        logging.info(val_list)
         for val in val_list:
-            self.append_u8(int(val))
+            self.append_u8(val)
+
+    def append_token_key(self, key):
+        logging.info(key)
+        self.append_u8(0xd0)
+        self.append_u8(len(key))
+        self.append_token_list(*list(key))
         
     def start_anybody_adminsp_session(self):
         self.append_token_call()
@@ -214,6 +221,28 @@ class Command(Buffer):
         self[40:] = struct.pack('>I', 0x34)
         self[52:] = struct.pack('>I', 0x27)
 
+    def start_adminsp_session(self, tsn, hsn, key):
+        self.append_token_call()
+        self.append_token_uid(OPAL_UID.SMUID)
+        self.append_token_method(OPAL_METHOD.STARTSESSION)
+        self.append_token_list(0xf0, 0x81, 0x69)
+        self.append_token_uid(OPAL_UID.ADMINSP)
+        self.append_u8(1)
+        
+        self.append_token_list(OPAL_TOKEN.STARTNAME, 0)
+        self.append_token_key(key)
+        self.append_token_list(OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.STARTNAME,
+                               3)
+        self.append_token_uid(OPAL_UID.SID)
+        self.append_token_list(OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST)
+
+        self.append_token_list(0xf9, 0xf0, 0, 0, 0, 0xf1)
+        self[16:] = struct.pack('>I', 0x6c)
+        self[40:] = struct.pack('>I', 0x54)
+        self[52:] = struct.pack('>I', 0x48)
+        
     def get_msid_cpin_pin(self, tsn, hsn):
         self.append_token_call()
         self.append_token_uid(OPAL_UID.C_PIN_MSID)
@@ -274,8 +303,8 @@ class Responce(Buffer):
         return tsn[0], hsn[0]
 
     def c_pin_msid(self):
-        length = struct.unpack(">B", self[0x3d:0x3e])
-        return self[0x3e:0x4e]
+        length = struct.unpack(">B", self[0x3d:0x3e])[0]
+        return self[0x3e:0x3e+length]
 
     
 def test_pyrite_discovery0(nvme0):
@@ -321,3 +350,14 @@ def test_take_ownership(subsystem, nvme0):
     nvme0.security_send(c, comid, size=2048).waitdone()
     nvme0.security_receive(r, comid, size=2048).waitdone()
     logging.info(r.dump(256))
+
+    c = Command(comid)
+    c.start_adminsp_session(0, 0, password)
+    logging.info(c.dump(256))
+
+    nvme0.security_send(c, comid, size=2048).waitdone()
+    nvme0.security_receive(r, comid, size=2048).waitdone()
+    logging.info(r.dump(256))
+    tsn, hsn = r.start_session()
+    logging.info("hsn 0x%x, tsn 0x%x" % (tsn, hsn))
+
