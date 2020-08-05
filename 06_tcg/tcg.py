@@ -199,18 +199,16 @@ class Command(Buffer):
         self.append_8_u8(opal_method_table[m])
 
     def append_token_list(self, *val_list):
-        logging.info(val_list)
+        logging.debug(val_list)
         for val in val_list:
             self.append_u8(val)
 
     def append_token_key(self, key):
-        logging.info(key)
         self.append_u8(0xd0)
         self.append_u8(len(key))
         self.append_token_list(*list(key))
         
     def append_token_key_2(self, key):
-        logging.info(key)
         self.append_u8(0xa0 + len(key))
         self.append_token_list(*list(key))
         
@@ -245,6 +243,39 @@ class Command(Buffer):
         self[16:] = struct.pack('>I', 0x6c)
         self[40:] = struct.pack('>I', 0x54)
         self[52:] = struct.pack('>I', 0x48)
+
+    def start_adminsp_session_2(self, tsn, hsn, key):
+        self.append_token_call()
+        self.append_token_uid(OPAL_UID.SMUID)
+        self.append_token_method(OPAL_METHOD.STARTSESSION)
+        self.append_token_list(0xf0, 0x81, 0x69)
+        self.append_token_uid(OPAL_UID.ADMINSP)
+        self.append_u8(1)
+        self.append_token_list(OPAL_TOKEN.STARTNAME, 0)
+        self.append_token_key_2(key)
+        self.append_token_list(OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.STARTNAME,
+                               3)
+        self.append_token_uid(OPAL_UID.SID)
+        self.append_token_list(OPAL_TOKEN.ENDNAME,
+                               OPAL_TOKEN.ENDLIST)
+        self.append_token_list(0xf9, 0xf0, 0, 0, 0, 0xf1)
+        self[16:] = struct.pack('>I', 0x64)
+        self[40:] = struct.pack('>I', 0x4c)
+        self[52:] = struct.pack('>I', 0x3d)
+
+    def revert_tper(self, tsn, hsn):
+        self.append_token_call()
+        self.append_token_uid(OPAL_UID.ADMINSP)
+        self.append_token_method(OPAL_METHOD.REVERT)
+        self.append_token_list(OPAL_TOKEN.STARTLIST,
+                               OPAL_TOKEN.ENDLIST)
+        self.append_token_list(0xf9, 0xf0, 0, 0, 0, 0xf1)
+        self[16:] = struct.pack('>I', 0x40)
+        self[20:] = struct.pack('>I', hsn)
+        self[24:] = struct.pack('>I', tsn)
+        self[40:] = struct.pack('>I', 0x28)
+        self[52:] = struct.pack('>I', 0x1b)
 
     def set_sid_cpin_pin(self, tsn, hsn, new_passwd):
         self.append_token_call()
@@ -312,7 +343,7 @@ class Responce(Buffer):
             length += 4
 
             # parse discovery responce buffer
-            logging.info((offset, feature, version, length))
+            logging.debug((offset, feature, version, length))
             if feature == 0x303:
                 # pyrite 2.0
                 comid, = struct.unpack('>H', self[offset+4:offset+6])
@@ -339,66 +370,85 @@ def test_pyrite_discovery0(nvme0):
     r.level0_discovery()
 
     
-def test_take_ownership(subsystem, nvme0, new_passwd=b'123456'):
-    subsystem.power_cycle()
-    nvme0.reset()
+def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
+    #subsystem.power_cycle()
+    #nvme0.reset()
     
     r = Responce()
     nvme0.security_receive(r, 1, size=2048).waitdone()
     comid = r.level0_discovery()
-    logging.info(r.dump(256))
+    logging.debug(r.dump(256))
     
     c = Command(comid)
     c.start_anybody_adminsp_session()
-    logging.info(c.dump(256))
+    logging.debug(c.dump(256))
     
     nvme0.security_send(c, comid, size=2048).waitdone()
     nvme0.security_receive(r, comid, size=2048).waitdone()
-    logging.info(r.dump(256))
+    logging.debug(r.dump(256))
     tsn, hsn = r.start_session()
-    logging.info("hsn 0x%x, tsn 0x%x" % (tsn, hsn))
+    logging.debug("hsn 0x%x, tsn 0x%x" % (tsn, hsn))
 
     c = Command(comid)
     c.get_msid_cpin_pin(tsn, hsn)
-    logging.info(c.dump(256))
+    logging.debug(c.dump(256))
     
     nvme0.security_send(c, comid, size=2048).waitdone()
     nvme0.security_receive(r, comid, size=2048).waitdone()
-    logging.info(r.dump(256))
+    logging.debug(r.dump(256))
     password = r.c_pin_msid()
-    logging.info(password)
+    logging.debug(password)
 
     c = Command(comid)
     c.end_session(tsn, hsn)
-    logging.info(c.dump(256))
+    logging.debug(c.dump(256))
     
     nvme0.security_send(c, comid, size=2048).waitdone()
     nvme0.security_receive(r, comid, size=2048).waitdone()
-    logging.info(r.dump(256))
+    logging.debug(r.dump(256))
 
     c = Command(comid)
     c.start_adminsp_session(0, 0, password)
-    logging.info(c.dump(256))
+    logging.debug(c.dump(256))
 
     nvme0.security_send(c, comid, size=2048).waitdone()
     nvme0.security_receive(r, comid, size=2048).waitdone()
-    logging.info(r.dump(256))
+    logging.debug(r.dump(256))
     tsn, hsn = r.start_session()
-    logging.info("hsn 0x%x, tsn 0x%x" % (tsn, hsn))
+    logging.debug("hsn 0x%x, tsn 0x%x" % (tsn, hsn))
 
     c = Command(comid)
     c.set_sid_cpin_pin(tsn, hsn, new_passwd)
-    logging.info(c.dump(256))
+    logging.debug(c.dump(256))
     
     nvme0.security_send(c, comid, size=2048).waitdone()
     nvme0.security_receive(r, comid, size=2048).waitdone()
-    logging.info(r.dump(256))
+    logging.debug(r.dump(256))
 
     c = Command(comid)
     c.end_session(tsn, hsn)
-    logging.info(c.dump(256))
+    logging.debug(c.dump(256))
     
     nvme0.security_send(c, comid, size=2048).waitdone()
     nvme0.security_receive(r, comid, size=2048).waitdone()
-    logging.info(r.dump(256))
-    
+    logging.debug(r.dump(256))
+
+    c = Command(comid)
+    c.start_adminsp_session_2(0, 0, new_passwd)
+    logging.debug(c.dump(256))
+
+    nvme0.security_send(c, comid, size=2048).waitdone()
+    nvme0.security_receive(r, comid, size=2048).waitdone()
+    logging.debug(r.dump(256))
+    tsn, hsn = r.start_session()
+    logging.debug("hsn 0x%x, tsn 0x%x" % (tsn, hsn))
+
+    c = Command(comid)
+    c.revert_tper(tsn, hsn)
+    logging.debug(c.dump(256))
+
+    nvme0.security_send(c, comid, size=2048).waitdone()
+    nvme0.security_receive(r, comid, size=2048).waitdone()
+    logging.debug(r.dump(256))
+
+    # No "end session" here needed.
