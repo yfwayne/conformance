@@ -214,7 +214,7 @@ class Command(Buffer):
         self[40:] = struct.pack('>I', 0x34)
         self[52:] = struct.pack('>I', 0x27)
 
-    def get_msid_cpin_pin(self):
+    def get_msid_cpin_pin(self, tsn, hsn):
         self.append_token_call()
         self.append_token_uid(OPAL_UID.C_PIN_MSID)
         self.append_token_method(OPAL_METHOD.GET)
@@ -232,8 +232,8 @@ class Command(Buffer):
                                OPAL_TOKEN.ENDLIST)
         self.append_token_list(0xf9, 0xf0, 0, 0, 0, 0xf1)
         self[16:] = struct.pack('>I', 0x4c)
-        self[20:] = struct.pack('>I', 0x101d)
-        self[24:] = struct.pack('>I', 0x69)
+        self[20:] = struct.pack('>I', hsn)
+        self[24:] = struct.pack('>I', tsn)
         self[40:] = struct.pack('>I', 0x34)
         self[52:] = struct.pack('>I', 0x25)
         
@@ -258,6 +258,11 @@ class Responce(Buffer):
         assert offset == total_length
         
         return comid
+
+    def start_session(self):
+        tsn = struct.unpack(">I", self[0x4d:0x51])
+        hsn = struct.unpack(">I", self[0x52:0x56])
+        return tsn[0], hsn[0]
         
 
 def test_pyrite_discovery0(nvme0):
@@ -280,9 +285,11 @@ def test_take_ownership(nvme0):
     nvme0.security_send(c, comid, size=2048).waitdone()
     nvme0.security_receive(r, comid, size=2048).waitdone()
     logging.info(r.dump(256))
+    tsn, hsn = r.start_session()
+    logging.info("hsn 0x%x, tsn 0x%x" % (tsn, hsn))
 
     c = Command(comid)
-    c.get_msid_cpin_pin()
+    c.get_msid_cpin_pin(tsn, hsn)
     logging.info(c.dump(256))
     
     nvme0.security_send(c, comid, size=2048).waitdone()
@@ -290,4 +297,8 @@ def test_take_ownership(nvme0):
     logging.info(r.dump(256))
     
     
+
+def test_powercycle_by_sleep(subsystem, nvme0):
+    # sleep system for 10 seconds, to make DUT power off and on
+    subsystem.power_cycle()
 
