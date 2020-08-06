@@ -183,7 +183,7 @@ class Command(object):
     def send(self, append_end_tokens=True):
         if append_end_tokens:
             self.append_token_list(0xf9, 0xf0, 0, 0, 0, 0xf1)
-        assert self.pos > 56
+        assert self.pos > 56 # larger than header
         self.buf[16:] = struct.pack('>I', self.pos-19)
         self.buf[40:] = struct.pack('>I', self.pos-43)
         self.buf[52:] = struct.pack('>I', self.pos-56)
@@ -194,48 +194,46 @@ class Command(object):
         self.buf[self.pos:] = struct.pack('>B', val)
         self.pos += 1
 
-    def append_8_u8(self, val):
-        self.buf[self.pos:] = struct.pack('>BBBBBBBB', *val)
-        self.pos += 8
-        
     def append_token_call(self):
         self.append_u8(0xf8)
 
     def append_token_uid(self, u):
-        self.append_u8(0xa8)
-        self.append_8_u8(opal_uid_table[u])
+        uid = opal_uid_table[u]
+        self.append_u8(0xa0+len(uid))
+        self.append_token_list(*uid)
         
     def append_token_method(self, m):
-        self.append_u8(0xa8)
-        self.append_8_u8(opal_method_table[m])
+        method = opal_method_table[m]
+        self.append_u8(0xa0+len(method))
+        self.append_token_list(*method)
 
     def append_token_list(self, *val_list):
         for val in val_list:
             self.append_u8(val)
 
     def append_token_key(self, key):
-        self.append_u8(0xd0)
-        self.append_u8(len(key))
+        if len(key) >= 16:
+            self.append_u8(0xd0)
+            self.append_u8(len(key))
+        else:
+            self.append_u8(0xa0 + len(key))
         self.append_token_list(*list(key))
         
-    def append_token_key_2(self, key):
-        self.append_u8(0xa0 + len(key))
-        self.append_token_list(*list(key))
-        
-    def start_anybody_adminsp_session(self):
+    def start_anybody_adminsp_session(self, hsn):
         self.append_token_call()
         self.append_token_uid(OPAL_UID.SMUID)
         self.append_token_method(OPAL_METHOD.STARTSESSION)
-        self.append_token_list(0xf0, 0x81, 0x69)
+        self.append_token_list(OPAL_TOKEN.STARTLIST, 0x81, hsn)
         self.append_token_uid(OPAL_UID.ADMINSP)
-        self.append_token_list(1, 0xf1)
+        self.append_token_list(OPAL_TOKEN.TRUE,
+                               OPAL_TOKEN.ENDLIST)
         return self
 
-    def start_adminsp_session(self, key):
+    def start_adminsp_session(self, hsn, key):
         self.append_token_call()
         self.append_token_uid(OPAL_UID.SMUID)
         self.append_token_method(OPAL_METHOD.STARTSESSION)
-        self.append_token_list(0xf0, 0x81, 0x69)
+        self.append_token_list(OPAL_TOKEN.STARTLIST, 0x81, hsn) # tiny atom token
         self.append_token_uid(OPAL_UID.ADMINSP)
         self.append_token_list(OPAL_TOKEN.TRUE, OPAL_TOKEN.STARTNAME, 0)
         self.append_token_key(key)
@@ -247,33 +245,17 @@ class Command(object):
                                OPAL_TOKEN.ENDLIST)
         return self
     
-    def start_adminsp_session_2(self, key):
-        self.append_token_call()
-        self.append_token_uid(OPAL_UID.SMUID)
-        self.append_token_method(OPAL_METHOD.STARTSESSION)
-        self.append_token_list(0xf0, 0x81, 0x69)
-        self.append_token_uid(OPAL_UID.ADMINSP)
-        self.append_token_list(OPAL_TOKEN.TRUE, OPAL_TOKEN.STARTNAME, 0)
-        self.append_token_key_2(key)
-        self.append_token_list(OPAL_TOKEN.ENDNAME,
-                               OPAL_TOKEN.STARTNAME,
-                               3)
-        self.append_token_uid(OPAL_UID.SID)
-        self.append_token_list(OPAL_TOKEN.ENDNAME,
-                               OPAL_TOKEN.ENDLIST)
-        return self
-    
-    def revert_tper(self, tsn, hsn):
+    def revert_tper(self, hsn, tsn):
         self.append_token_call()
         self.append_token_uid(OPAL_UID.ADMINSP)
         self.append_token_method(OPAL_METHOD.REVERT)
         self.append_token_list(OPAL_TOKEN.STARTLIST,
                                OPAL_TOKEN.ENDLIST)
-        self.buf[20:] = struct.pack('>I', hsn)
-        self.buf[24:] = struct.pack('>I', tsn)
+        self.buf[20:] = struct.pack('>I', tsn)
+        self.buf[24:] = struct.pack('>I', hsn)
         return self
     
-    def set_sid_cpin_pin(self, tsn, hsn, new_passwd):
+    def set_sid_cpin_pin(self, hsn, tsn, new_passwd):
         self.append_token_call()
         self.append_token_uid(OPAL_UID.C_PIN_SID)
         self.append_token_method(OPAL_METHOD.SET)
@@ -283,16 +265,16 @@ class Command(object):
                                OPAL_TOKEN.STARTLIST,
                                OPAL_TOKEN.STARTNAME,
                                OPAL_TOKEN.PIN)
-        self.append_token_key_2(new_passwd)
+        self.append_token_key(new_passwd)
         self.append_token_list(OPAL_TOKEN.ENDNAME,
                                OPAL_TOKEN.ENDLIST,
                                OPAL_TOKEN.ENDNAME,
                                OPAL_TOKEN.ENDLIST)
-        self.buf[20:] = struct.pack('>I', hsn)
-        self.buf[24:] = struct.pack('>I', tsn)
+        self.buf[20:] = struct.pack('>I', tsn)
+        self.buf[24:] = struct.pack('>I', hsn)
         return self
     
-    def get_msid_cpin_pin(self, tsn, hsn):
+    def get_msid_cpin_pin(self, hsn, tsn):
         self.append_token_call()
         self.append_token_uid(OPAL_UID.C_PIN_MSID)
         self.append_token_method(OPAL_METHOD.GET)
@@ -308,14 +290,14 @@ class Command(object):
                                OPAL_TOKEN.ENDNAME,
                                OPAL_TOKEN.ENDLIST,
                                OPAL_TOKEN.ENDLIST)
-        self.buf[20:] = struct.pack('>I', hsn)
-        self.buf[24:] = struct.pack('>I', tsn)
+        self.buf[20:] = struct.pack('>I', tsn)
+        self.buf[24:] = struct.pack('>I', hsn)
         return self
     
-    def end_session(self, tsn, hsn):
+    def end_session(self, hsn, tsn):
         self.append_u8(OPAL_TOKEN.ENDOFSESSION)
-        self.buf[20:] = struct.pack('>I', hsn)
-        self.buf[24:] = struct.pack('>I', tsn)
+        self.buf[20:] = struct.pack('>I', tsn)
+        self.buf[24:] = struct.pack('>I', hsn)
         return self
     
 
@@ -344,9 +326,9 @@ class Responce(object):
         return comid
 
     def start_session(self):
-        tsn = struct.unpack(">I", self.buf[0x4d:0x51])
-        hsn = struct.unpack(">I", self.buf[0x52:0x56])
-        return tsn[0], hsn[0]
+        hsn = struct.unpack(">I", self.buf[0x4d:0x51])
+        tsn = struct.unpack(">I", self.buf[0x52:0x56])
+        return hsn[0], tsn[0]
 
     def c_pin_msid(self):
         length = struct.unpack(">B", self.buf[0x3d:0x3e])[0]
@@ -356,28 +338,28 @@ class Responce(object):
 def test_take_ownership_and_revert_tper(nvme0, new_passwd=b'123456'):
     comid = Responce(nvme0).level0_discovery()
 
-    Command(nvme0, comid).start_anybody_adminsp_session().send()
-    tsn, hsn = Responce(nvme0, comid).start_session()
+    Command(nvme0, comid).start_anybody_adminsp_session(0x65).send()
+    hsn, tsn = Responce(nvme0, comid).start_session()
 
-    Command(nvme0, comid).get_msid_cpin_pin(tsn, hsn).send()
+    Command(nvme0, comid).get_msid_cpin_pin(hsn, tsn).send()
     password = Responce(nvme0, comid).c_pin_msid()
 
-    Command(nvme0, comid).end_session(tsn, hsn).send(False)
+    Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Responce(nvme0, comid)
 
-    Command(nvme0, comid).start_adminsp_session(password).send()
-    tsn, hsn = Responce(nvme0, comid).start_session()
+    Command(nvme0, comid).start_adminsp_session(0x66, password).send()
+    hsn, tsn = Responce(nvme0, comid).start_session()
 
-    Command(nvme0, comid).set_sid_cpin_pin(tsn, hsn, new_passwd).send()
+    Command(nvme0, comid).set_sid_cpin_pin(hsn, tsn, new_passwd).send()
     Responce(nvme0, comid)
 
-    Command(nvme0, comid).end_session(tsn, hsn).send(False)
+    Command(nvme0, comid).end_session(hsn, tsn).send(False)
     Responce(nvme0, comid)
 
-    Command(nvme0, comid).start_adminsp_session_2(new_passwd).send()
-    tsn, hsn = Responce(nvme0, comid).start_session()
+    Command(nvme0, comid).start_adminsp_session(0x69, new_passwd).send()
+    hsn, tsn = Responce(nvme0, comid).start_session()
 
-    Command(nvme0, comid).revert_tper(tsn, hsn).send()
+    Command(nvme0, comid).revert_tper(hsn, tsn).send()
     Responce(nvme0, comid)
 
     # No "end session" for revert tper
