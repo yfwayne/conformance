@@ -181,6 +181,10 @@ class Command(object):
         self.pos = 0x38
 
     def send(self):
+        assert self.pos > 56
+        self.buf[16:] = struct.pack('>I', self.pos-19)
+        self.buf[40:] = struct.pack('>I', self.pos-43)
+        self.buf[52:] = struct.pack('>I', self.pos-56)
         logging.debug(self.buf.dump(256))
         self.nvme0.security_send(self.buf, self.comid).waitdone()
 
@@ -224,9 +228,6 @@ class Command(object):
         self.append_token_uid(OPAL_UID.ADMINSP)
         self.append_token_list(1, 0xf1)
         self.append_token_list(0xf9, 0xf0, 0, 0, 0, 0xf1)
-        self.buf[16:] = struct.pack('>I', 0x4c)
-        self.buf[40:] = struct.pack('>I', 0x34)
-        self.buf[52:] = struct.pack('>I', 0x27)
         return self
 
     def start_adminsp_session(self, tsn, hsn, key):
@@ -245,9 +246,6 @@ class Command(object):
         self.append_token_list(OPAL_TOKEN.ENDNAME,
                                OPAL_TOKEN.ENDLIST)
         self.append_token_list(0xf9, 0xf0, 0, 0, 0, 0xf1)
-        self.buf[16:] = struct.pack('>I', 0x6c)
-        self.buf[40:] = struct.pack('>I', 0x54)
-        self.buf[52:] = struct.pack('>I', 0x48)
         return self
     
     def start_adminsp_session_2(self, tsn, hsn, key):
@@ -266,9 +264,6 @@ class Command(object):
         self.append_token_list(OPAL_TOKEN.ENDNAME,
                                OPAL_TOKEN.ENDLIST)
         self.append_token_list(0xf9, 0xf0, 0, 0, 0, 0xf1)
-        self.buf[16:] = struct.pack('>I', 0x64)
-        self.buf[40:] = struct.pack('>I', 0x4c)
-        self.buf[52:] = struct.pack('>I', 0x3d)
         return self
     
     def revert_tper(self, tsn, hsn):
@@ -278,11 +273,8 @@ class Command(object):
         self.append_token_list(OPAL_TOKEN.STARTLIST,
                                OPAL_TOKEN.ENDLIST)
         self.append_token_list(0xf9, 0xf0, 0, 0, 0, 0xf1)
-        self.buf[16:] = struct.pack('>I', 0x40)
         self.buf[20:] = struct.pack('>I', hsn)
         self.buf[24:] = struct.pack('>I', tsn)
-        self.buf[40:] = struct.pack('>I', 0x28)
-        self.buf[52:] = struct.pack('>I', 0x1b)
         return self
     
     def set_sid_cpin_pin(self, tsn, hsn, new_passwd):
@@ -301,11 +293,8 @@ class Command(object):
                                OPAL_TOKEN.ENDNAME,
                                OPAL_TOKEN.ENDLIST)
         self.append_token_list(0xf9, 0xf0, 0, 0, 0, 0xf1)
-        self.buf[16:] = struct.pack('>I', 0x50)
         self.buf[20:] = struct.pack('>I', hsn)
         self.buf[24:] = struct.pack('>I', tsn)
-        self.buf[40:] = struct.pack('>I', 0x38)
-        self.buf[52:] = struct.pack('>I', 0x2a)
         return self
     
     def get_msid_cpin_pin(self, tsn, hsn):
@@ -325,21 +314,15 @@ class Command(object):
                                OPAL_TOKEN.ENDLIST,
                                OPAL_TOKEN.ENDLIST)
         self.append_token_list(0xf9, 0xf0, 0, 0, 0, 0xf1)
-        self.buf[16:] = struct.pack('>I', 0x4c)
         self.buf[20:] = struct.pack('>I', hsn)
         self.buf[24:] = struct.pack('>I', tsn)
-        self.buf[40:] = struct.pack('>I', 0x34)
-        self.buf[52:] = struct.pack('>I', 0x25)
         return self
     
     def end_session(self, tsn, hsn):
         self.append_u8(OPAL_TOKEN.ENDOFSESSION)
         #self.append_token_list(0xf9, 0xf0, 0, 0, 0, 0xf1)
-        self.buf[16:] = struct.pack('>I', 0x28)
         self.buf[20:] = struct.pack('>I', hsn)
         self.buf[24:] = struct.pack('>I', tsn)
-        self.buf[40:] = struct.pack('>I', 0x10)
-        self.buf[52:] = struct.pack('>I', 0x1)
         return self
     
 
@@ -365,7 +348,6 @@ class Responce(object):
                 
             offset += length
         assert offset == total_length
-        
         return comid
 
     def start_session(self):
@@ -377,11 +359,8 @@ class Responce(object):
         length = struct.unpack(">B", self.buf[0x3d:0x3e])[0]
         return self.buf[0x3e:0x3e+length]
 
-    def parse(self):
-        pass
-
     
-def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
+def test_take_ownership_and_revert_tper(nvme0, new_passwd=b'123456'):
     comid = Responce(nvme0).level0_discovery()
 
     Command(nvme0, comid).start_anybody_adminsp_session().send()
@@ -391,21 +370,21 @@ def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
     password = Responce(nvme0, comid).c_pin_msid()
 
     Command(nvme0, comid).end_session(tsn, hsn).send()
-    Responce(nvme0, comid).parse()
+    Responce(nvme0, comid)
 
     Command(nvme0, comid).start_adminsp_session(0, 0, password).send()
     tsn, hsn = Responce(nvme0, comid).start_session()
 
     Command(nvme0, comid).set_sid_cpin_pin(tsn, hsn, new_passwd).send()
-    Responce(nvme0, comid).parse()
+    Responce(nvme0, comid)
 
     Command(nvme0, comid).end_session(tsn, hsn).send()
-    Responce(nvme0, comid).parse()
+    Responce(nvme0, comid)
 
     Command(nvme0, comid).start_adminsp_session_2(0, 0, new_passwd).send()
     tsn, hsn = Responce(nvme0, comid).start_session()
 
     Command(nvme0, comid).revert_tper(tsn, hsn).send()
-    Responce(nvme0, comid).parse()
+    Responce(nvme0, comid)
 
     # No "end session" for revert tper
