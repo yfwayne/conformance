@@ -332,13 +332,17 @@ class Command(Buffer):
         self[52:] = struct.pack('>I', 0x1)
         
 
-class Responce(Buffer):
+class Responce(object):
+    def __init__(self, nvme0, comid=1):
+        self.buf = Buffer(2048, "TCG Responce Buffer")
+        nvme0.security_receive(self.buf, comid).waitdone()
+
     def level0_discovery(self):
-        total_length, ver, _ = struct.unpack('>IIQ', self[:16])
+        total_length, ver, _ = struct.unpack('>IIQ', self.buf[:16])
         total_length += 4
         offset = 48
         while offset < total_length:
-            feature, version, length = struct.unpack('>HBB', self[offset:offset+4])
+            feature, version, length = struct.unpack('>HBB', self.buf[offset:offset+4])
             version >>= 4
             length += 4
 
@@ -346,7 +350,7 @@ class Responce(Buffer):
             logging.debug((offset, feature, version, length))
             if feature == 0x303:
                 # pyrite 2.0
-                comid, = struct.unpack('>H', self[offset+4:offset+6])
+                comid, = struct.unpack('>H', self.buf[offset+4:offset+6])
                 
             offset += length
         assert offset == total_length
@@ -354,13 +358,16 @@ class Responce(Buffer):
         return comid
 
     def start_session(self):
-        tsn = struct.unpack(">I", self[0x4d:0x51])
-        hsn = struct.unpack(">I", self[0x52:0x56])
+        tsn = struct.unpack(">I", self.buf[0x4d:0x51])
+        hsn = struct.unpack(">I", self.buf[0x52:0x56])
         return tsn[0], hsn[0]
 
     def c_pin_msid(self):
-        length = struct.unpack(">B", self[0x3d:0x3e])[0]
-        return self[0x3e:0x3e+length]
+        length = struct.unpack(">B", self.buf[0x3d:0x3e])[0]
+        return self.buf[0x3e:0x3e+length]
+
+    def parse(self):
+        pass
 
     
 def test_pyrite_discovery0(nvme0):
@@ -371,70 +378,46 @@ def test_pyrite_discovery0(nvme0):
 
     
 def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
-    comid = 1
-    
-    r = Responce()
-    nvme0.security_receive(r, comid).waitdone()
-    comid = r.level0_discovery()
-    
+    comid = Responce(nvme0).level0_discovery()
+
     c = Command(comid)
     c.start_anybody_adminsp_session()
     nvme0.security_send(c, comid).waitdone()
-    
-    r = Responce()
-    nvme0.security_receive(r, comid).waitdone()
-    tsn, hsn = r.start_session()
+    tsn, hsn = Responce(nvme0, comid).start_session()
 
     c = Command(comid)
     c.get_msid_cpin_pin(tsn, hsn)
     nvme0.security_send(c, comid).waitdone()
-    
-    r = Responce()
-    nvme0.security_receive(r, comid).waitdone()
-    password = r.c_pin_msid()
+    password = Responce(nvme0, comid).c_pin_msid()
 
     c = Command(comid)
     c.end_session(tsn, hsn)
     nvme0.security_send(c, comid).waitdone()
-
-    r = Responce()
-    nvme0.security_receive(r, comid).waitdone()
+    Responce(nvme0, comid).parse()
 
     c = Command(comid)
     c.start_adminsp_session(0, 0, password)
     nvme0.security_send(c, comid).waitdone()
-    
-    r = Responce()
-    nvme0.security_receive(r, comid).waitdone()
-    tsn, hsn = r.start_session()
+    tsn, hsn = Responce(nvme0, comid).start_session()
 
     c = Command(comid)
     c.set_sid_cpin_pin(tsn, hsn, new_passwd)
     nvme0.security_send(c, comid).waitdone()
-    
-    r = Responce()
-    nvme0.security_receive(r, comid).waitdone()
+    Responce(nvme0, comid).parse()
 
     c = Command(comid)
     c.end_session(tsn, hsn)
     nvme0.security_send(c, comid).waitdone()
-    
-    r = Responce()
-    nvme0.security_receive(r, comid).waitdone()
+    Responce(nvme0, comid).parse()
 
     c = Command(comid)
     c.start_adminsp_session_2(0, 0, new_passwd)
     nvme0.security_send(c, comid).waitdone()
-    
-    r = Responce()
-    nvme0.security_receive(r, comid).waitdone()
-    tsn, hsn = r.start_session()
+    tsn, hsn = Responce(nvme0, comid).start_session()
 
     c = Command(comid)
     c.revert_tper(tsn, hsn)
     nvme0.security_send(c, comid).waitdone()
-    
-    r = Responce()
-    nvme0.security_receive(r, comid).waitdone()
+    Responce(nvme0, comid).parse()
 
-    # No "end session" here needed.
+    # No "end session" for revert tper
