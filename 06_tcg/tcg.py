@@ -371,84 +371,70 @@ def test_pyrite_discovery0(nvme0):
 
     
 def test_take_ownership_and_revert_tper(subsystem, nvme0, new_passwd=b'123456'):
-    #subsystem.power_cycle()
-    #nvme0.reset()
+    comid = 1
     
     r = Responce()
-    nvme0.security_receive(r, 1, size=2048).waitdone()
+    nvme0.security_receive(r, comid).waitdone()
     comid = r.level0_discovery()
-    logging.debug(r.dump(256))
     
     c = Command(comid)
     c.start_anybody_adminsp_session()
-    logging.debug(c.dump(256))
+    nvme0.security_send(c, comid).waitdone()
     
-    nvme0.security_send(c, comid, size=2048).waitdone()
-    nvme0.security_receive(r, comid, size=2048).waitdone()
-    logging.debug(r.dump(256))
+    r = Responce()
+    nvme0.security_receive(r, comid).waitdone()
     tsn, hsn = r.start_session()
-    logging.debug("hsn 0x%x, tsn 0x%x" % (tsn, hsn))
 
     c = Command(comid)
     c.get_msid_cpin_pin(tsn, hsn)
-    logging.debug(c.dump(256))
+    nvme0.security_send(c, comid).waitdone()
     
-    nvme0.security_send(c, comid, size=2048).waitdone()
-    nvme0.security_receive(r, comid, size=2048).waitdone()
-    logging.debug(r.dump(256))
+    r = Responce()
+    nvme0.security_receive(r, comid).waitdone()
     password = r.c_pin_msid()
-    logging.debug(password)
 
     c = Command(comid)
     c.end_session(tsn, hsn)
-    logging.debug(c.dump(256))
-    
-    nvme0.security_send(c, comid, size=2048).waitdone()
-    nvme0.security_receive(r, comid, size=2048).waitdone()
-    logging.debug(r.dump(256))
+    nvme0.security_send(c, comid).waitdone()
+
+    r = Responce()
+    nvme0.security_receive(r, comid).waitdone()
 
     c = Command(comid)
     c.start_adminsp_session(0, 0, password)
-    logging.debug(c.dump(256))
-
-    nvme0.security_send(c, comid, size=2048).waitdone()
-    nvme0.security_receive(r, comid, size=2048).waitdone()
-    logging.debug(r.dump(256))
+    nvme0.security_send(c, comid).waitdone()
+    
+    r = Responce()
+    nvme0.security_receive(r, comid).waitdone()
     tsn, hsn = r.start_session()
-    logging.debug("hsn 0x%x, tsn 0x%x" % (tsn, hsn))
 
     c = Command(comid)
     c.set_sid_cpin_pin(tsn, hsn, new_passwd)
-    logging.debug(c.dump(256))
+    nvme0.security_send(c, comid).waitdone()
     
-    nvme0.security_send(c, comid, size=2048).waitdone()
-    nvme0.security_receive(r, comid, size=2048).waitdone()
-    logging.debug(r.dump(256))
+    r = Responce()
+    nvme0.security_receive(r, comid).waitdone()
 
     c = Command(comid)
     c.end_session(tsn, hsn)
-    logging.debug(c.dump(256))
+    nvme0.security_send(c, comid).waitdone()
     
-    nvme0.security_send(c, comid, size=2048).waitdone()
-    nvme0.security_receive(r, comid, size=2048).waitdone()
-    logging.debug(r.dump(256))
+    r = Responce()
+    nvme0.security_receive(r, comid).waitdone()
 
     c = Command(comid)
     c.start_adminsp_session_2(0, 0, new_passwd)
-    logging.debug(c.dump(256))
-
-    nvme0.security_send(c, comid, size=2048).waitdone()
-    nvme0.security_receive(r, comid, size=2048).waitdone()
-    logging.debug(r.dump(256))
+    nvme0.security_send(c, comid).waitdone()
+    
+    r = Responce()
+    nvme0.security_receive(r, comid).waitdone()
     tsn, hsn = r.start_session()
-    logging.debug("hsn 0x%x, tsn 0x%x" % (tsn, hsn))
 
     c = Command(comid)
     c.revert_tper(tsn, hsn)
-    logging.debug(c.dump(256))
-
-    nvme0.security_send(c, comid, size=2048).waitdone()
-    nvme0.security_receive(r, comid, size=2048).waitdone()
-    logging.debug(r.dump(256))
+    nvme0.security_send(c, comid).waitdone()
+    
+    r = Responce()
+    nvme0.security_receive(r, comid).waitdone()
 
     # No "end session" here needed.
