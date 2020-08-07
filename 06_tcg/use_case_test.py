@@ -42,7 +42,15 @@ def test_uct02_properties(nvme0):
     tcg.Response(nvme0, comid).receive()
 
 
-def test_uct03_take_ownership(nvme0, new_passwd=b'123456'):
+@pytest.mark.parametrize("new_passwd",
+                         [b'123456',
+                          b'1',
+                          b'1234',
+                          b'abcd',
+                          b'123456789abcdef',
+                          b'123456789abcdef0',
+                          b'123456789abcdef0123456789abcdef0'])
+def test_uct03_take_ownership(nvme0, new_passwd):
     # discovery
     comid = tcg.Response(nvme0).receive().level0_discovery()
 
