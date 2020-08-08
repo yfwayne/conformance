@@ -40,6 +40,9 @@ def sq(nvme0, cq):
 
 
 def test_write_uncorrectable_large_lba(nvme0, nvme0n1, buf, qpair):
+    if not nvme0n1.supports(0x4):
+        pytest.skip("Write Uncorrectable is not supported")
+
     ncap = nvme0n1.id_data(15, 8)
     
     nvme0n1.write_uncorrectable(qpair, ncap-1).waitdone()
@@ -56,6 +59,9 @@ def test_write_uncorrectable_large_lba(nvme0, nvme0n1, buf, qpair):
 @pytest.mark.parametrize("repeat", range(32))
 def test_deallocate_after_write_uncorrectable(nvme0, nvme0n1, repeat, qpair, 
                                               lba_start=0, lba_step=8, lba_count=8):
+    if not nvme0n1.supports(0x4):
+        pytest.skip("Write Uncorrectable is not supported")
+
     if not nvme0n1.supports(0x9):
         pytest.skip("dsm is not supprted")
 
@@ -75,6 +81,9 @@ def test_deallocate_after_write_uncorrectable(nvme0, nvme0n1, repeat, qpair,
 @pytest.mark.parametrize("repeat", range(32))
 def test_deallocate_before_write_uncorrectable(nvme0, nvme0n1, repeat, qpair, 
                                               lba_start=0, lba_step=8, lba_count=8):
+    if not nvme0n1.supports(0x4):
+        pytest.skip("Write Uncorrectable is not supported")
+
     if not nvme0n1.supports(0x9):
         pytest.skip("dsm is not supprted")
 
@@ -96,6 +105,9 @@ def test_deallocate_before_write_uncorrectable(nvme0, nvme0n1, repeat, qpair,
 def test_write_uncorrectable_read(nvme0, nvme0n1, repeat, qpair, 
                                   lba_start=0, lba_step=8, lba_count=8):
     if not nvme0n1.supports(0x4):
+        pytest.skip("Write Uncorrectable is not supported")
+
+    if not nvme0n1.supports(0x4):
         pytest.skip("dsm is not supprted")
 
     buf = Buffer(4096)
@@ -113,6 +125,9 @@ def test_write_uncorrectable_read(nvme0, nvme0n1, repeat, qpair,
 
 
 def test_write_uncorrectable_invalid_nlb(nvme0, nvme0n1, cq, sq):
+    if not nvme0n1.supports(0x4):
+        pytest.skip("Write Uncorrectable is not supported")
+
     ncap = nvme0n1.id_data(15, 8)
     mdts = nvme0.mdts
     
