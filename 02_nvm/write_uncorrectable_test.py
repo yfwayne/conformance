@@ -18,6 +18,7 @@
 # -*- coding: utf-8 -*-
 
 
+
 import time
 import pytest
 import logging
@@ -63,10 +64,8 @@ def test_deallocate_after_write_uncorrectable(nvme0, nvme0n1, repeat, qpair,
         pytest.skip("Write Uncorrectable is not supported")
 
     if not nvme0n1.supports(0x9):
-        pytest.skip("dsm is not supprted")
+        pytest.skip("dsm is not supported")
 
-    if not nvme0n1.supports(0x4):
-        pytest.skip("dsm is not supprted")
 
     buf = Buffer(4096)
     pattern = repeat + (repeat<<8) + (repeat<<16) + (repeat<<24)
@@ -85,10 +84,7 @@ def test_deallocate_before_write_uncorrectable(nvme0, nvme0n1, repeat, qpair,
         pytest.skip("Write Uncorrectable is not supported")
 
     if not nvme0n1.supports(0x9):
-        pytest.skip("dsm is not supprted")
-
-    if not nvme0n1.supports(0x4):
-        pytest.skip("dsm is not supprted")
+        pytest.skip("dsm is not supported")
 
     buf = Buffer(4096)
     pattern = repeat + (repeat<<8) + (repeat<<16) + (repeat<<24)
@@ -106,9 +102,6 @@ def test_write_uncorrectable_read(nvme0, nvme0n1, repeat, qpair,
                                   lba_start=0, lba_step=8, lba_count=8):
     if not nvme0n1.supports(0x4):
         pytest.skip("Write Uncorrectable is not supported")
-
-    if not nvme0n1.supports(0x4):
-        pytest.skip("dsm is not supprted")
 
     buf = Buffer(4096)
     read_buf = Buffer(4096, "read")
@@ -139,4 +132,3 @@ def test_write_uncorrectable_invalid_nlb(nvme0, nvme0n1, cq, sq):
     time.sleep(0.1)
     status = (cq[0][3]>>17)&0x7ff
     assert status == 0
-    
