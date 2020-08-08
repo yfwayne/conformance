@@ -70,10 +70,13 @@ def test_uct03_take_ownership(nvme0, new_passwd):
     tcg.Response(nvme0, comid).receive()
 
     # revert
+    orig_timeout = nvme0.timeout
+    nvme0.timeout = 100000
     tcg.Command(nvme0, comid).start_adminsp_session(0x69, new_passwd).send()
     hsn, tsn = tcg.Response(nvme0, comid).receive().start_session()
     tcg.Command(nvme0, comid).revert_tper(hsn, tsn).send()
     tcg.Response(nvme0, comid).receive()
+    nvme0.timeout = orig_timeout
 
 
 def test_uct04_activate_locking_sp(nvme0, new_passwd=b'123456'):
@@ -106,10 +109,13 @@ def test_uct04_activate_locking_sp(nvme0, new_passwd=b'123456'):
     tcg.Response(nvme0, comid).receive()
 
     # revert
+    orig_timeout = nvme0.timeout
+    nvme0.timeout = 100000
     tcg.Command(nvme0, comid).start_adminsp_session(0x69, new_passwd).send()
     hsn, tsn = tcg.Response(nvme0, comid).receive().start_session()
     tcg.Command(nvme0, comid).revert_tper(hsn, tsn).send()
     tcg.Response(nvme0, comid).receive()
+    nvme0.timeout = orig_timeout
 
 
 def test_uct05_configuring_authorities(nvme0, new_passwd=b'123456'):
@@ -166,7 +172,11 @@ def test_uct05_configuring_authorities(nvme0, new_passwd=b'123456'):
     tcg.Response(nvme0, comid).receive()
 
     # revert
+    orig_timeout = nvme0.timeout
+    nvme0.timeout = 100000
     tcg.Command(nvme0, comid).start_adminsp_session(0x69, new_passwd).send()
     hsn, tsn = tcg.Response(nvme0, comid).receive().start_session()
     tcg.Command(nvme0, comid).revert_tper(hsn, tsn).send()
     tcg.Response(nvme0, comid).receive()
+    nvme0.timeout = orig_timeout
+    
