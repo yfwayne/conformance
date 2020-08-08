@@ -40,6 +40,9 @@ def sq(nvme0, cq):
 
     
 def test_write_zeroes_large_lba(nvme0, nvme0n1, buf, qpair):
+    if not nvme0n1.supports(0x8):
+        pytest.skip("Write zeroes is not supported")
+    
     ncap = nvme0n1.id_data(15, 8)
     
     nvme0n1.write_zeroes(qpair, ncap-1).waitdone()
@@ -55,6 +58,9 @@ def test_write_zeroes_large_lba(nvme0, nvme0n1, buf, qpair):
 
 @pytest.mark.parametrize("ioflag", [0, 0x4000, 0x8000, 0xc000])
 def test_write_zeroes_valid(nvme0, nvme0n1, ioflag, qpair):
+    if not nvme0n1.supports(0x8):
+        pytest.skip("Write zeroes is not supported")    
+    
     # prepare data buffer and IO queue
     read_buf = Buffer(512)
     write_buf = Buffer(512)
@@ -76,6 +82,9 @@ def test_write_zeroes_valid(nvme0, nvme0n1, ioflag, qpair):
         
 
 def test_write_zeroes_invalid_nsid(nvme0, nvme0n1, cq, sq):
+    if not nvme0n1.supports(0x8):
+        pytest.skip("Write zeroes is not supported")
+
     # first cmd, invalid namespace
     cmd = SQE(8, 0xff)
     sq[0] = cmd
@@ -86,6 +95,9 @@ def test_write_zeroes_invalid_nsid(nvme0, nvme0n1, cq, sq):
 
     
 def test_write_zeroes_invalid_nlb(nvme0, nvme0n1, cq, sq):
+    if not nvme0n1.supports(0x8):
+        pytest.skip("Write zeroes is not supported")
+
     ncap = nvme0n1.id_data(15, 8)
     mdts = nvme0.mdts
 
@@ -100,6 +112,9 @@ def test_write_zeroes_invalid_nlb(nvme0, nvme0n1, cq, sq):
 
     
 def test_write_zeroes_invalid_nsid_lba(nvme0, nvme0n1, cq, sq):
+    if not nvme0n1.supports(0x8):
+        pytest.skip("Write zeroes is not supported")    
+
     ncap = nvme0n1.id_data(15, 8)
     mdts = nvme0.mdts
     
