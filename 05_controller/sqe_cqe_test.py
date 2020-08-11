@@ -86,16 +86,10 @@ def test_p_invert_after_cq_2_pass(nvme0):
     cq = IOCQ(nvme0, 1, 2, PRP())
     
     # create four SQ, both use the same CQ
-    sq2 = IOSQ(nvme0, 2, 16, PRP(), cqid=1)
     sq3 = IOSQ(nvme0, 3, 16, PRP(), cqid=1)
-    sq4 = IOSQ(nvme0, 4, 16, PRP(), cqid=1)
-    sq5 = IOSQ(nvme0, 5, 16, PRP(), cqid=1)
     
     # IO command templates: opcode and namespace
     write_cmd = SQE(1, 1)
-
-    logging.info("before cqe {}, value {}".format(0, CQE(cq[0]).p))
-    logging.info("before cqe {}, value {}".format(1, CQE(cq[1]).p))
 
     # write in sq3
     w1 = SQE(*write_cmd)
@@ -112,8 +106,8 @@ def test_p_invert_after_cq_2_pass(nvme0):
 
     # write in sq5
     w1.cid = 0x567
-    sq5[0] = w1
-    sq5.tail = 1
+    sq3[1] = w1
+    sq3.tail = 2
 
     # cqe for w1
     while CQE(cq[0]).p == 0: pass
@@ -127,46 +121,41 @@ def test_p_invert_after_cq_2_pass(nvme0):
     while CQE(cq[1]).p == 0: pass
     cqe = CQE(cq[1])
     assert cqe.cid == 0x567
-    assert cqe.sqid == 5
-    assert cqe.sqhd == 1
+    assert cqe.sqid == 3
+    assert cqe.sqhd == 2
     cq.head = 0
 
-    logging.info("after cqe {} ,value {}".format(0, CQE(cq[0]).p))
-    logging.info("after cqe {} ,value {}".format(1, CQE(cq[1]).p))
-    
-    logging.info("before cqe {} ,value {}".format(0, CQE(cq[0]).p))
-    logging.info("before cqe {} ,value {}".format(1, CQE(cq[1]).p))
+    assert CQE(cq[0]).p == 1
+    assert CQE(cq[1]).p == 1
 
     # write in sq3
     w1.cid = 0x147
-    sq2[0] = w1
-    sq2.tail = 1
+    sq3[2] = w1
+    sq3.tail = 3
 
     # add some delay, so ssd should finish w1 before w2
     time.sleep(0.1)
 
     # write in sq5
     w1.cid = 0x167
-    sq4[0] = w1
-    sq4.tail = 1
+    sq3[3] = w1
+    sq3.tail = 4
 
     # cqe for w3
     while CQE(cq[0]).p == 1: pass
     cqe = CQE(cq[0])
     assert cqe.cid == 0x147
-    assert cqe.sqid == 2
-    assert cqe.sqhd == 1
+    assert cqe.sqid == 3
+    assert cqe.sqhd == 3
     cq.head = 1
     
     # cqe for w4
     while CQE(cq[1]).p == 1: pass
     cqe = CQE(cq[1])
     assert cqe.cid == 0x167
-    assert cqe.sqid == 4
-    assert cqe.sqhd == 1
+    assert cqe.sqid == 3
+    assert cqe.sqhd == 4
     cq.head = 0
     
-    logging.info("after cqe {} ,value {}".format(0, CQE(cq[0]).p))
-    logging.info("after cqe {} ,value {}".format(1, CQE(cq[1]).p))
     assert CQE(cq[0]).p == 0
     assert CQE(cq[1]).p == 0
