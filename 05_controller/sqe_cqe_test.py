@@ -76,18 +76,18 @@ def test_cq_sqhd(nvme0):
     assert cq[0][0] == 0
     assert cq[0][1] == 0
 
-    
+
 def test_p_invert_after_cq_2_pass(nvme0):
     """
     The value of the Phase Tag is inverted each pass filling the Complete Queue.
     """
-    
+
     # cqid: 1, PC, depth: 2
     cq = IOCQ(nvme0, 1, 2, PRP())
-    
+
     # create four SQ, both use the same CQ
     sq3 = IOSQ(nvme0, 3, 16, PRP(), cqid=1)
-    
+
     # IO command templates: opcode and namespace
     write_cmd = SQE(1, 1)
 
@@ -148,7 +148,7 @@ def test_p_invert_after_cq_2_pass(nvme0):
     assert cqe.sqid == 3
     assert cqe.sqhd == 3
     cq.head = 1
-    
+
     # cqe for w4
     while CQE(cq[1]).p == 1: pass
     cqe = CQE(cq[1])
@@ -156,6 +156,45 @@ def test_p_invert_after_cq_2_pass(nvme0):
     assert cqe.sqid == 3
     assert cqe.sqhd == 4
     cq.head = 0
-    
+
     assert CQE(cq[0]).p == 0
     assert CQE(cq[1]).p == 0
+
+
+def test_cqe_sqhd_aer(nvme0,buf):
+    a=()
+    cq = IOCQ(nvme0, 1, 5, PRP())
+    sq = IOSQ(nvme0, 1, 5, PRP(), cqid=1)
+    sq.tail = 5
+    time.sleep(0.1)
+    #Invalid Doorbell Write Value
+    with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
+        nvme0.waitdone()
+    sq.delete()
+    cq.delete()
+    def call_back_cpl(cpl):
+        nonlocal a;a=cpl
+    nvme0.getlogpage(1, buf,cb=call_back_cpl).waitdone()
+    sqhd1=a[2]&0xffff
+    logging.info(sqhd1)
+    nvme0.aer(cb=call_back_cpl)
+    nvme0.getlogpage(1, buf,cb=call_back_cpl).waitdone()
+    sqhd2=a[2]&0xffff
+    logging.info(sqhd2)
+    assert sqhd2==sqhd1+2
+    cq = IOCQ(nvme0, 1, 5, PRP())
+    sq = IOSQ(nvme0, 1, 5, PRP(), cqid=1)
+    sq.tail = 5
+    time.sleep(0.1)
+    #Invalid Doorbell Write Value
+    with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
+        nvme0.waitdone()
+        sqhd_aer=a[2]&0xffff
+        sqhd_aer=sqhd2+2
+        logging.info("aer sqhd is {}".format(sqhd_aer))
+    sq.delete()
+    cq.delete()
+    nvme0.getlogpage(1, buf,cb=call_back_cpl).waitdone()
+    sqhd3=a[2]&0xffff
+    assert sqhd3==sqhd_aer+3
+    logging.info(sqhd3)
