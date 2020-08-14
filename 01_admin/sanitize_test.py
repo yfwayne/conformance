@@ -41,8 +41,6 @@ def test_sanitize_operations_basic(nvme0, nvme0n1, buf):
             nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-        # one more waitdone for AER
-        nvme0.waitdone()
 
     # check sanitize status
     nvme0.getlogpage(0x81, buf, 20).waitdone()
@@ -70,8 +68,6 @@ def test_sanitize_operations_powercycle(nvme0, buf, subsystem):
             nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-        # one more waitdone for AER
-        nvme0.waitdone()
             
     # check sanitize status
     nvme0.getlogpage(0x81, buf, 20).waitdone()
@@ -112,8 +108,6 @@ def test_write_in_sanitize_operations(nvme0, nvme0n1, buf, qpair):
             nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-        # one more waitdone for AER
-        nvme0.waitdone()
 
     # check sanitize status
     nvme0.getlogpage(0x81, buf, 20).waitdone()

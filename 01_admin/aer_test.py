@@ -44,13 +44,50 @@ def test_aer_limit_exceeded(nvme0):
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
         for i in range(100):
             nvme0.abort(127-i).waitdone()
-        nvme0.waitdone(aerl)
 
 
-def test_aer_sanitize(nvme0, nvme0n1, buf):
+def test_aer_sanitize(pcie, buf):
+    # aer callback function
+    aer_cdw0 = 0
+    def aer_cb(cdw0, status):
+        nonlocal aer_cdw0; aer_cdw0 = cdw0
+        
+    def nvme_init(nvme0):
+        # 2. disable cc.en and wait csts.rdy to 0
+        nvme0[0x14] = 0
+        while not (nvme0[0x1c]&0x1) == 0: pass
+
+        # 3. set admin queue registers
+        nvme0.init_adminq()
+
+        # 4. set register cc
+        nvme0[0x14] = 0x00460000
+
+        # 5. enable cc.en
+        nvme0[0x14] = 0x00460001
+
+        # 6. wait csts.rdy to 1
+        while not (nvme0[0x1c]&0x1) == 1: pass
+
+        # 7. identify controller
+        nvme0.identify(Buffer(4096)).waitdone()
+
+        # 8. create and identify all namespace
+        nvme0.init_ns()
+
+        # 9. set/get num of queues
+        nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
+        nvme0.getfeatures(0x7).waitdone()
+
+        # 10. send out all aer
+        aerl = nvme0.id_data(259)+1
+        for i in range(aerl):
+            nvme0.aer(cb=aer_cb)
+
+    nvme0 = Controller(pcie, nvme_init_func=nvme_init)
     if nvme0.id_data(331, 328) == 0:
         pytest.skip("sanitize operation is not supported")
-
+            
     logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
     nvme0.sanitize().waitdone()  # sanitize command is completed
 
@@ -62,18 +99,10 @@ def test_aer_sanitize(nvme0, nvme0n1, buf):
             nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-        # one more waitdone for AER
-        nvme0.waitdone()
 
     # check sanitize status
     nvme0.getlogpage(0x81, buf, 20).waitdone()
     assert buf.data(3, 2) & 0x7 == 1
-        
-    # aer callback function
-    aer_cdw0 = 0
-    def aer_cb(cdw0, status):
-        nonlocal aer_cdw0; aer_cdw0 = cdw0
-    nvme0.aer(cb=aer_cb)
         
     # test sanitize once more with new aer
     nvme0.sanitize().waitdone()  # sanitize command is completed
@@ -84,8 +113,6 @@ def test_aer_sanitize(nvme0, nvme0n1, buf):
             nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-        # one more waitdone for AER
-        nvme0.waitdone()
     assert aer_cdw0 == 0x810106
 
 
@@ -108,17 +135,16 @@ def test_aer_mask_event(nvme0):
     # over composite temperature threshold
     nvme0.setfeatures(4, cdw11=ktemp-10).waitdone()
 
-    # AER should be triggered
+    # AER should be triggered here
     with pytest.warns(UserWarning, match="AER notification is triggered"):
         nvme0.getlogpage(0x02, smart_log, 512).waitdone()
-
-    # AER is consumed
-    nvme0.setfeatures(4, cdw11=ktemp-20).waitdone()
-    nvme0.getlogpage(0x02, smart_log, 512).waitdone()    
-    assert smart_log.data(0) & 0x2
+        nvme0.setfeatures(4, cdw11=ktemp-20).waitdone()
+        nvme0.getlogpage(0x02, smart_log, 512).waitdone()    
+        assert smart_log.data(0) & 0x2
     
-    # revert to default
-    orig_config = nvme0.getfeatures(4, sel=1).waitdone()
-    nvme0.setfeatures(4, cdw11=orig_config).waitdone()
+        # revert to default
+        orig_config = nvme0.getfeatures(4, sel=1).waitdone()
+        nvme0.setfeatures(4, cdw11=orig_config).waitdone()
+        
     nvme0.setfeatures(0xb, cdw11=config).waitdone()
     

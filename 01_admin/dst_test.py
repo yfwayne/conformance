@@ -207,7 +207,6 @@ def test_dst_abort_by_sanitize(nvme0, nvme0n1, stc, nsid=1):
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
             time.sleep(1)    
-        nvme0.waitdone()  # aer complete
 
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
@@ -227,7 +226,9 @@ def test_dst_after_sanitize(nvme0, nvme0n1, stc, nsid=1):
     logging.info("supported sanitize operation: %d" % nvme0.id_data(331, 328))
     nvme0.sanitize().waitdone()  # sanitize command is completed
 
-    nvme0.dst(stc, nsid).waitdone()
+    with pytest.warns(UserWarning, match="ERROR status: 00/1d"):
+        # dst aborted due to in-progress sanitize
+        nvme0.dst(stc, nsid).waitdone()
 
     # check sanitize status in log page
     with pytest.warns(UserWarning, match="AER notification is triggered"):
@@ -237,8 +238,6 @@ def test_dst_after_sanitize(nvme0, nvme0n1, stc, nsid=1):
             nvme0.getlogpage(0x81, buf, 20).waitdone()  #L20
             progress = buf.data(1, 0)*100//0xffff
             logging.info("%d%%" % progress)
-        # one more waitdone for AER
-        nvme0.waitdone()
         
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
