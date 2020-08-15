@@ -104,9 +104,6 @@ def test_p_invert_after_cq_2_pass(nvme0):
     # add some delay, so ssd should finish w1 before w2
     time.sleep(0.1)
 
-    sq3.delete()
-    cq.delete()
-
     # write in sq5
     w1.cid = 0x567
     sq3[1] = w1
