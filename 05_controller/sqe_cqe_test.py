@@ -86,7 +86,7 @@ def test_p_invert_after_cq_2_pass(nvme0):
     cq = IOCQ(nvme0, 1, 2, PRP())
 
     # create four SQ, both use the same CQ
-    sq3 = IOSQ(nvme0, 3, 16, PRP(), cqid=1)
+    sq3 = IOSQ(nvme0, 3, 10, PRP(), cqid=1)
 
     # IO command templates: opcode and namespace
     write_cmd = SQE(1, 1)
@@ -104,11 +104,15 @@ def test_p_invert_after_cq_2_pass(nvme0):
     # add some delay, so ssd should finish w1 before w2
     time.sleep(0.1)
 
+    sq3.delete()
+    cq.delete()
+
     # write in sq5
     w1.cid = 0x567
     sq3[1] = w1
     sq3.tail = 2
 
+    logging.info("aaa")
     # cqe for w1
     while CQE(cq[0]).p == 0: pass
     cqe = CQE(cq[0])
@@ -118,7 +122,9 @@ def test_p_invert_after_cq_2_pass(nvme0):
     cq.head = 1
 
     # cqe for w2
+    logging.info("bbb")
     while CQE(cq[1]).p == 0: pass
+    logging.info("ccc")
     cqe = CQE(cq[1])
     assert cqe.cid == 0x567
     assert cqe.sqid == 3
@@ -160,41 +166,3 @@ def test_p_invert_after_cq_2_pass(nvme0):
     assert CQE(cq[0]).p == 0
     assert CQE(cq[1]).p == 0
 
-
-def test_cqe_sqhd_aer(nvme0,buf):
-    a=()
-    cq = IOCQ(nvme0, 1, 5, PRP())
-    sq = IOSQ(nvme0, 1, 5, PRP(), cqid=1)
-    sq.tail = 5
-    time.sleep(0.1)
-    #Invalid Doorbell Write Value
-    with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
-        nvme0.waitdone()
-    sq.delete()
-    cq.delete()
-    def call_back_cpl(cpl):
-        nonlocal a;a=cpl
-    nvme0.getlogpage(1, buf,cb=call_back_cpl).waitdone()
-    sqhd1=a[2]&0xffff
-    logging.info(sqhd1)
-    nvme0.aer(cb=call_back_cpl)
-    nvme0.getlogpage(1, buf,cb=call_back_cpl).waitdone()
-    sqhd2=a[2]&0xffff
-    logging.info(sqhd2)
-    assert sqhd2==sqhd1+2
-    cq = IOCQ(nvme0, 1, 5, PRP())
-    sq = IOSQ(nvme0, 1, 5, PRP(), cqid=1)
-    sq.tail = 5
-    time.sleep(0.1)
-    #Invalid Doorbell Write Value
-    with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
-        nvme0.waitdone()
-        sqhd_aer=a[2]&0xffff
-        sqhd_aer=sqhd2+2
-        logging.info("aer sqhd is {}".format(sqhd_aer))
-    sq.delete()
-    cq.delete()
-    nvme0.getlogpage(1, buf,cb=call_back_cpl).waitdone()
-    sqhd3=a[2]&0xffff
-    assert sqhd3==sqhd_aer+3
-    logging.info(sqhd3)
