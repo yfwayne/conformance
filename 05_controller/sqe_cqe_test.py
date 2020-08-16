@@ -252,7 +252,7 @@ def test_sq_opc_invalid_nvm_cmd(nvme0,opc_id):
     # check cq
     time.sleep(0.1)
     #sct=0,sc=1(Invalid Command Opcode)
-    assert cq[0][3]>>17 == 0x0001
+    assert (cq[0][3]>>17)&0x3ff == 0x0001
 
     sq.delete()
     cq.delete()
@@ -268,7 +268,7 @@ def test_sq_ns_invalid(nvme0,ns_id):
     # check cq
     time.sleep(0.1)
     #sct=0,sc=0x0b(Invalid Namespace or Format)
-    assert cq[0][3]>>17 == 0x000b
+    assert (cq[0][3]>>17)&0x3ff == 0x000b
 
     sq.delete()
     cq.delete()    
