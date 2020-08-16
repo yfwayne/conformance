@@ -199,7 +199,7 @@ def test_sq_rsv(nvme0):
     cq = IOCQ(nvme0, 1, 3, PRP())
     sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
 
-    # Reserved filed is non-zero.
+    # Reserved field is non-zero.
     sq[0] = SQE((1<<16) + (7<<10) + 0, 1); sq.tail = 1; time.sleep(0.1)
 
     # check cq
@@ -212,7 +212,7 @@ def test_sq_fuse_is_zero(nvme0):
     cq = IOCQ(nvme0, 1, 3, PRP())
     sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
 
-    # FUSE filed is zero.
+    # FUSE field is zero.
     sq[0] = SQE((1<<16) + (0<<8), 1); sq.tail = 1; time.sleep(0.1)
 
     # check cq
@@ -221,6 +221,20 @@ def test_sq_fuse_is_zero(nvme0):
     sq.delete()
     cq.delete()
 
+def test_sq_fuse_is_rsv(nvme0):
+    cq = IOCQ(nvme0, 1, 3, PRP())
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+
+    # FUSE field is 0x3(Reserved).
+    sq[0] = SQE((1<<16) + (3<<8), 1); sq.tail = 1; time.sleep(0.1)
+
+    # check cq
+    time.sleep(0.1)
+    #sct=0,sc=2(Invalid Field in Command)
+    assert cq[0][3]>>17 == 0x0002
+    sq.delete()
+    cq.delete()
+    
 @pytest.mark.parametrize("opc_id", [0x3, 0x7, 0x0b, 0x0f, 0x12, 0x13, 0x16, 0x17, 0x1b])
 def test_sq_opc_invalid_admin_cmd(nvme0,opc_id):
     #sct=0,sc=1(Invalid Command Opcode)
@@ -232,7 +246,7 @@ def test_sq_opc_invalid_nvm_cmd(nvme0,opc_id):
     cq = IOCQ(nvme0, 1, 3, PRP())
     sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
 
-    # OPC is invalid.
+    # OPC field is invalid.
     sq[0] = SQE((1<<16) + opc_id, 1); sq.tail = 1; time.sleep(0.1)
 
     # check cq
@@ -248,7 +262,7 @@ def test_sq_ns_invalid(nvme0,ns_id):
     cq = IOCQ(nvme0, 1, 3, PRP())
     sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
 
-    # ns is invalid.
+    # ns field is invalid.
     sq[0] = SQE(2, ns_id); sq.tail = 1; time.sleep(0.1)
 
     # check cq
