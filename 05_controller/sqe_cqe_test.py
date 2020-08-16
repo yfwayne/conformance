@@ -163,3 +163,98 @@ def test_p_invert_after_cq_2_pass(nvme0):
     assert CQE(cq[0]).p == 0
     assert CQE(cq[1]).p == 0
 
+
+def test_sq_cid1(nvme0):
+    cq = IOCQ(nvme0, 1, 3, PRP())
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+
+    # send discontinuous cid commands
+    sq[0] = SQE(4<<16+0, 1); sq.tail = 1; time.sleep(0.1)
+    sq[1] = SQE(1<<16+0, 1); sq.tail = 2; time.sleep(0.1)
+
+    # check cq
+    time.sleep(0.1)
+    assert cq[0][3] == 0x10004
+    assert cq[1][3] == 0x10001
+    sq.delete()
+    cq.delete()
+
+def test_sq_cid2(nvme0):
+    cq = IOCQ(nvme0, 1, 3, PRP())
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+
+    # send max/min cid commands
+    sq[0] = SQE(0xFFFF<<16+0, 1); 
+    sq[1] = SQE(0<<16+0, 1); sq.tail = 2; time.sleep(0.1)
+
+    # check cq
+    time.sleep(0.1)
+    assert cq[0][3] == 0x1FFFF
+    assert cq[1][3] == 0x10000
+    sq.delete()
+    cq.delete()
+    
+
+def test_sq_rsv(nvme0):
+    cq = IOCQ(nvme0, 1, 3, PRP())
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+
+    # Reserved filed is non-zero.
+    sq[0] = SQE((1<<16) + (7<<10) + 0, 1); sq.tail = 1; time.sleep(0.1)
+
+    # check cq
+    time.sleep(0.1)
+    assert cq[0][3] == 0x10001
+    sq.delete()
+    cq.delete()
+
+def test_sq_fuse_is_zero(nvme0):
+    cq = IOCQ(nvme0, 1, 3, PRP())
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+
+    # FUSE filed is zero.
+    sq[0] = SQE((1<<16) + (0<<8), 1); sq.tail = 1; time.sleep(0.1)
+
+    # check cq
+    time.sleep(0.1)
+    assert cq[0][3] == 0x10001
+    sq.delete()
+    cq.delete()
+
+@pytest.mark.parametrize("opc_id", [0x3, 0x7, 0x0b, 0x0f, 0x12, 0x13, 0x16, 0x17, 0x1b])
+def test_sq_opc_invalid_admin_cmd(nvme0,opc_id):
+    #sct=0,sc=1(Invalid Command Opcode)
+    with pytest.warns(UserWarning, match="ERROR status: 00/01"):
+        nvme0.send_cmd(opc_id).waitdone()
+
+@pytest.mark.parametrize("opc_id", [0x03, 0x07, 0x0a, 0x0b, 0x0f, 0x10, 0x12, 0x13, 0x14])
+def test_sq_opc_invalid_nvm_cmd(nvme0,opc_id):
+    cq = IOCQ(nvme0, 1, 3, PRP())
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+
+    # OPC is invalid.
+    sq[0] = SQE((1<<16) + opc_id, 1); sq.tail = 1; time.sleep(0.1)
+
+    # check cq
+    time.sleep(0.1)
+    #sct=0,sc=1(Invalid Command Opcode)
+    assert cq[0][3]>>17 == 0x0001
+
+    sq.delete()
+    cq.delete()
+
+@pytest.mark.parametrize("ns_id", [0, 0x10, 0x100, 0x1000, 0xffffffff])
+def test_sq_ns_invalid(nvme0,ns_id):
+    cq = IOCQ(nvme0, 1, 3, PRP())
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+
+    # ns is invalid.
+    sq[0] = SQE(2, ns_id); sq.tail = 1; time.sleep(0.1)
+
+    # check cq
+    time.sleep(0.1)
+    #sct=0,sc=0x0b(Invalid Namespace or Format)
+    assert cq[0][3]>>17 == 0x000b
+
+    sq.delete()
+    cq.delete()    
