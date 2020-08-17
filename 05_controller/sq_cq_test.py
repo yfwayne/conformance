@@ -51,8 +51,8 @@ def test_sq_cq_wrap(nvme0):
 
     sq.delete()
     cq.delete()
-    
-    
+
+
 def test_sq_wrap_overflow(nvme0):
     cq = IOCQ(nvme0, 1, 5, PRP())
     sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
@@ -76,33 +76,33 @@ def test_sq_wrap_overflow(nvme0):
     assert cq[4][3] == 0
     logging.info(sq[0])
     logging.info(cq[0])
-    
+
     sq.delete()
     cq.delete()
-    
+
 
 def test_delete_cq_before_sq(nvme0):
     cq = IOCQ(nvme0, 1, 5, PRP())
     sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
     with pytest.warns(UserWarning, match="ERROR status: 01/0c"):
         cq.delete()
-    
+
 
 def test_sq_doorbell(nvme0):
     cq = IOCQ(nvme0, 1, 5, PRP())
     sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
     sq.tail = 1
-    
+
     time.sleep(0.1)
     sq.delete()
     cq.delete()
 
-    
+
 def test_sq_doorbell_invalid1(nvme0):
     cq = IOCQ(nvme0, 1, 5, PRP())
     sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
     sq.tail = 2
-    
+
     time.sleep(0.1)
     #Invalid Doorbell Write Value
     with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
@@ -110,12 +110,12 @@ def test_sq_doorbell_invalid1(nvme0):
     sq.delete()
     cq.delete()
 
-    
+
 def test_sq_doorbell_invalid2(nvme0):
     cq = IOCQ(nvme0, 1, 5, PRP())
     sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
     sq.tail = 3
-    
+
     time.sleep(0.1)
     #Invalid Doorbell Write Value
     with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
@@ -123,13 +123,13 @@ def test_sq_doorbell_invalid2(nvme0):
     sq.delete()
     cq.delete()
 
-    
+
 def test_cq_doorbell_valid(nvme0):
     cq = IOCQ(nvme0, 1, 5, PRP())
     time.sleep(0.1)
     cq.delete()
 
-    
+
 @pytest.mark.parametrize("head", range(7))
 def test_cq_doorbell_invalid(nvme0, head):
     cq = IOCQ(nvme0, 1, 5, PRP())
@@ -138,7 +138,7 @@ def test_cq_doorbell_invalid(nvme0, head):
     with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
         nvme0.waitdone()
     cq.delete()
-    
+
 
 def test_sq_cq_another_sq(nvme0):
     cq = IOCQ(nvme0, 1, 3, PRP())
@@ -166,4 +166,59 @@ def test_sq_cq_another_sq(nvme0):
     sq.delete()
     sq2.delete()
     cq.delete()
-    
+
+
+def test_cqe_sqhd_aer(nvme0,buf):
+    #Create cq and sq
+    a=()
+    cq = IOCQ(nvme0, 1, 5, PRP())
+    sq = IOSQ(nvme0, 1, 5, PRP(), cqid=1)
+
+    #Trigger aer cmd response by invaild doorbell write value
+    sq.tail = 5
+    time.sleep(0.1)
+
+    #Invalid Doorbell Write Value
+    with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
+        nvme0.waitdone()
+    sq.delete()
+    cq.delete()
+
+    def call_back_cpl(cpl):
+        nonlocal a;a=cpl
+
+    #Check normal cmd cqe sqhd value
+    nvme0.getlogpage(1, buf,cb=call_back_cpl).waitdone()
+    sqhd1=a[2]&0xffff
+    logging.info(sqhd1)
+
+    nvme0.aer(cb=call_back_cpl)
+    nvme0.getlogpage(1, buf,cb=call_back_cpl).waitdone()
+    sqhd2=a[2]&0xffff
+    logging.info(sqhd2)
+    assert sqhd2==sqhd1+2
+
+    #Trigger aer cmd response by invaild doorbell write value
+    cq = IOCQ(nvme0, 1, 5, PRP())
+    sq = IOSQ(nvme0, 1, 5, PRP(), cqid=1)
+    sq.tail = 5
+    time.sleep(0.1)
+
+    #Invalid Doorbell Write Value
+    with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
+        nvme0.waitdone()
+        #verify aer cmd cqe sqhd
+        sqhd_aer=a[2]&0xffff
+        sqhd_aer=sqhd2+2
+        logging.info("aer sqhd is {}".format(sqhd_aer))
+
+    sq.delete()
+    cq.delete()
+
+    #verify the following cmd cqe sqhd
+    nvme0.getlogpage(1, buf,cb=call_back_cpl).waitdone()
+    sqhd3=a[2]&0xffff
+    assert sqhd3==sqhd_aer+3
+    logging.info(sqhd3)
+
+

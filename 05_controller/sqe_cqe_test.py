@@ -75,4 +75,200 @@ def test_cq_sqhd(nvme0):
     assert cq[0][2] == 0x10000
     assert cq[0][0] == 0
     assert cq[0][1] == 0
+
+
+def test_p_invert_after_cq_2_pass(nvme0):
+    """
+    The value of the Phase Tag is inverted each pass filling the Complete Queue.
+    """
+
+    # cqid: 1, PC, depth: 2
+    cq = IOCQ(nvme0, 1, 2, PRP())
+
+    # create four SQ, both use the same CQ
+    sq3 = IOSQ(nvme0, 3, 10, PRP(), cqid=1)
+
+    # IO command templates: opcode and namespace
+    write_cmd = SQE(1, 1)
+
+    # write in sq3
+    w1 = SQE(*write_cmd)
+    write_buf = PRP(ptype=32, pvalue=0xaaaaaaaa)
+    w1.prp1 = write_buf
+    w1[10] = 1
+    w1[12] = 1 # 0based
+    w1.cid = 0x123
+    sq3[0] = w1
+    sq3.tail = 1
+
+    # add some delay, so ssd should finish w1 before w2
+    time.sleep(0.1)
+
+    # write in sq5
+    w1.cid = 0x567
+    sq3[1] = w1
+    sq3.tail = 2
+
+    logging.info("aaa")
+    # cqe for w1
+    while CQE(cq[0]).p == 0: pass
+    cqe = CQE(cq[0])
+    assert cqe.cid == 0x123
+    assert cqe.sqid == 3
+    assert cqe.sqhd == 1
+    cq.head = 1
+
+    # cqe for w2
+    logging.info("bbb")
+    while CQE(cq[1]).p == 0: pass
+    logging.info("ccc")
+    cqe = CQE(cq[1])
+    assert cqe.cid == 0x567
+    assert cqe.sqid == 3
+    assert cqe.sqhd == 2
+    cq.head = 0
+
+    assert CQE(cq[0]).p == 1
+    assert CQE(cq[1]).p == 1
+
+    # write in sq3
+    w1.cid = 0x147
+    sq3[2] = w1
+    sq3.tail = 3
+
+    # add some delay, so ssd should finish w1 before w2
+    time.sleep(0.1)
+
+    # write in sq5
+    w1.cid = 0x167
+    sq3[3] = w1
+    sq3.tail = 4
+
+    # cqe for w3
+    while CQE(cq[0]).p == 1: pass
+    cqe = CQE(cq[0])
+    assert cqe.cid == 0x147
+    assert cqe.sqid == 3
+    assert cqe.sqhd == 3
+    cq.head = 1
+
+    # cqe for w4
+    while CQE(cq[1]).p == 1: pass
+    cqe = CQE(cq[1])
+    assert cqe.cid == 0x167
+    assert cqe.sqid == 3
+    assert cqe.sqhd == 4
+    cq.head = 0
+
+    assert CQE(cq[0]).p == 0
+    assert CQE(cq[1]).p == 0
+
+
+def test_sq_cid1(nvme0):
+    cq = IOCQ(nvme0, 1, 3, PRP())
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+
+    # send discontinuous cid commands
+    sq[0] = SQE(4<<16+0, 1); sq.tail = 1; time.sleep(0.1)
+    sq[1] = SQE(1<<16+0, 1); sq.tail = 2; time.sleep(0.1)
+
+    # check cq
+    time.sleep(0.1)
+    assert cq[0][3] == 0x10004
+    assert cq[1][3] == 0x10001
+    sq.delete()
+    cq.delete()
+
+def test_sq_cid2(nvme0):
+    cq = IOCQ(nvme0, 1, 3, PRP())
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+
+    # send max/min cid commands
+    sq[0] = SQE(0xFFFF<<16+0, 1); 
+    sq[1] = SQE(0<<16+0, 1); sq.tail = 2; time.sleep(0.1)
+
+    # check cq
+    time.sleep(0.1)
+    assert cq[0][3] == 0x1FFFF
+    assert cq[1][3] == 0x10000
+    sq.delete()
+    cq.delete()
     
+
+def test_sq_rsv(nvme0):
+    cq = IOCQ(nvme0, 1, 3, PRP())
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+
+    # Reserved field is non-zero.
+    sq[0] = SQE((1<<16) + (7<<10) + 0, 1); sq.tail = 1; time.sleep(0.1)
+
+    # check cq
+    time.sleep(0.1)
+    assert cq[0][3] == 0x10001
+    sq.delete()
+    cq.delete()
+
+def test_sq_fuse_is_zero(nvme0):
+    cq = IOCQ(nvme0, 1, 3, PRP())
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+
+    # FUSE field is zero.
+    sq[0] = SQE((1<<16) + (0<<8), 1); sq.tail = 1; time.sleep(0.1)
+
+    # check cq
+    time.sleep(0.1)
+    assert cq[0][3] == 0x10001
+    sq.delete()
+    cq.delete()
+
+def test_sq_fuse_is_rsv(nvme0):
+    cq = IOCQ(nvme0, 1, 3, PRP())
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+
+    # FUSE field is 0x3(Reserved).
+    sq[0] = SQE((1<<16) + (3<<8), 1); sq.tail = 1; time.sleep(0.1)
+
+    # check cq
+    time.sleep(0.1)
+    #sct=0,sc=2(Invalid Field in Command)
+    assert cq[0][3]>>17 == 0x0002
+    sq.delete()
+    cq.delete()
+    
+@pytest.mark.parametrize("opc_id", [0x3, 0x7, 0x0b, 0x0f, 0x12, 0x13, 0x16, 0x17, 0x1b])
+def test_sq_opc_invalid_admin_cmd(nvme0,opc_id):
+    #sct=0,sc=1(Invalid Command Opcode)
+    with pytest.warns(UserWarning, match="ERROR status: 00/01"):
+        nvme0.send_cmd(opc_id).waitdone()
+
+@pytest.mark.parametrize("opc_id", [0x03, 0x07, 0x0a, 0x0b, 0x0f, 0x10, 0x12, 0x13, 0x14])
+def test_sq_opc_invalid_nvm_cmd(nvme0,opc_id):
+    cq = IOCQ(nvme0, 1, 3, PRP())
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+
+    # OPC field is invalid.
+    sq[0] = SQE((1<<16) + opc_id, 1); sq.tail = 1; time.sleep(0.1)
+
+    # check cq
+    time.sleep(0.1)
+    #sct=0,sc=1(Invalid Command Opcode)
+    assert (cq[0][3]>>17)&0x3ff == 0x0001
+
+    sq.delete()
+    cq.delete()
+
+@pytest.mark.parametrize("ns_id", [0, 0x10, 0x100, 0x1000, 0xffffffff])
+def test_sq_ns_invalid(nvme0,ns_id):
+    cq = IOCQ(nvme0, 1, 3, PRP())
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+
+    # ns field is invalid.
+    sq[0] = SQE(2, ns_id); sq.tail = 1; time.sleep(0.1)
+
+    # check cq
+    time.sleep(0.1)
+    #sct=0,sc=0x0b(Invalid Namespace or Format)
+    assert (cq[0][3]>>17)&0x3ff == 0x000b
+
+    sq.delete()
+    cq.delete()    
