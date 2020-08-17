@@ -30,11 +30,9 @@ def test_aer_limit_exceeded(nvme0):
     aerl = nvme0.id_data(259)+1
     logging.info(aerl)
     
-    def aer_cb(cdw0, status):
-        assert ((status&0xfff)>>1) == 0x0007
     # another one is sent in defaul nvme init
     for i in range(aerl-1):
-        nvme0.aer(cb=aer_cb)
+        nvme0.aer()
 
     # send one more
     with pytest.warns(UserWarning, match="ERROR status: 01/05"):
