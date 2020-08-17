@@ -35,6 +35,14 @@ def ncqa(nvme0):
     logging.info("number of queue: %d" % num_of_queue)
     return num_of_queue
 
+def get_aggregation_time_threshold(nvme0):
+    time_threhold = 0
+    def get_feature_cb(cdw0, status):
+        nonlocal time_threhold
+        time_threhold = cdw0&0xffff
+    nvme0.getfeatures(8, cb=get_feature_cb).waitdone()
+    logging.info("aggregation_time_threshold: 0x%x" % time_threhold)
+    return time_threhold
 
 def test_io_qpair_msix_interrupt_all(nvme0, nvme0n1, ncqa):
     buf = d.Buffer(4096)
@@ -103,8 +111,10 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1, buf, qpair):
     qpair.msix_clear()
     assert not qpair.msix_isset()
 
-    # aggregation time: 100*100us=0.01s, aggregation threshold: 2
-    nvme0.setfeatures(8, cdw11=(200<<8)+10)
+    # Get drvie interrupt aggregation time and threshold
+    time_threhold = get_aggregation_time_threshold(nvme0)
+    logging.info("interrupt aggregation time: %dus" % ( (time_threhold>>8)*100))
+    logging.info("interrupt aggregation threshold: %d" % (time_threhold&0xff))
 
     # 1 cmd, check interrupt latency
     nvme0n1.read(qpair, buf, 0, 8)
@@ -115,9 +125,12 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1, buf, qpair):
     qpair.waitdone()
     qpair.msix_clear()
 
+    # aggregation time: 100*100us=0.01s, aggregation threshold: 2
+    nvme0.setfeatures(8, cdw11=(200<<8)+10).waitdone()
+
     # 2 cmd, check interrupt latency
-    nvme0n1.read(qpair, buf, 0, 8)
-    nvme0n1.read(qpair, buf, 0, 8)
+    nvme0n1.read(qpair, buf, 0x8FFF, 8)
+    nvme0n1.read(qpair, buf, 0x1600, 8)   
     start = time.time()
     while not qpair.msix_isset(): pass
     latency2 = time.time()-start
@@ -126,7 +139,8 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1, buf, qpair):
     qpair.msix_clear()
 
     # 1 cmd, check interrupt latency
-    nvme0n1.read(qpair, buf, 0, 8)
+    nvme0.setfeatures(8, cdw11=0).waitdone()
+    nvme0n1.read(qpair, buf, 32, 8)
     start = time.time()
     while not qpair.msix_isset(): pass
     latency1 = time.time()-start
@@ -135,5 +149,5 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1, buf, qpair):
     qpair.msix_clear()
     qpair.delete()
 
-    assert latency2 < latency1
+    assert latency2 > latency1
 
