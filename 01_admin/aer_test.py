@@ -36,7 +36,8 @@ def test_aer_limit_exceeded(nvme0):
 
     # send one more
     with pytest.warns(UserWarning, match="ERROR status: 01/05"):
-        nvme0.aer().waitdone()
+        nvme0.aer()
+        nvme0.getfeatures(7).waitdone()
 
     # abort all
     with pytest.warns(UserWarning, match="ERROR status: 00/07"):
