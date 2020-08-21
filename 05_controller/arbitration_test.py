@@ -78,7 +78,7 @@ def test_ioworker_with_wrr(nvme0, nvme0n1):
     # 8:4:2
     assert nvme0[0x14] == 0x00460801
     nvme0.setfeatures(1, cdw11=0x07030103).waitdone()
-    cdw0 = nvme0.getfeatures(1, cdw11=0x7313).waitdone()
+    cdw0 = nvme0.getfeatures(1).waitdone()
     assert cdw0 == 0x07030103
 
     l = []
@@ -114,7 +114,7 @@ def test_weighed_round_robin(nvme0):
 
     assert nvme0[0x14] == 0x00460801
     nvme0.setfeatures(1, cdw11=0x07030103).waitdone()
-    cdw0 = nvme0.getfeatures(1, cdw11=0x7313).waitdone()
+    cdw0 = nvme0.getfeatures(1).waitdone()
     assert cdw0 == 0x07030103
         
     start = time.time()
