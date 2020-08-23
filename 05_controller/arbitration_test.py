@@ -55,8 +55,10 @@ def nvme_init_wrr(nvme0):
     nvme0.init_ns()
 
     # 9. set/get num of queues
-    nvme0.setfeatures(0x7, cdw11=0x00ff00ff).waitdone()
-    nvme0.getfeatures(0x7).waitdone()
+    logging.debug("init number of queues")
+    nvme0.setfeatures(0x7, cdw11=0xfffefffe).waitdone()
+    cdw0 = nvme0.getfeatures(0x7).waitdone()
+    nvme0.init_queues(cdw0)
 
 @pytest.fixture()
 def nvme0(pcie):
