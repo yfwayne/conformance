@@ -180,3 +180,7 @@ def test_pcie_msix_cap( pcie, nvme0, nvme0n1, buf ):
     assert not q.msix_isset()
     q.waitdone()
     q.delete()
+    # restore MSI-X bit
+    pcie[msix_cap_addr+3] =  ( msix_ctrl >> 8 ) | 0x80
+    msix_ctrl = pcie.register(msix_cap_addr+2, 2)
+    logging.info("restore msix_ctrl register [0x%x]= 0x%x"% (msix_cap_addr+2, msix_ctrl))
