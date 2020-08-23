@@ -151,3 +151,32 @@ def test_io_qpair_msix_interrupt_coalescing(nvme0, nvme0n1, buf, qpair):
 
     assert latency2 > latency1
 
+def test_pcie_msix_cap( pcie, nvme0, nvme0n1, buf ):
+    msix_cap_addr = pcie.cap_offset(0x11)
+    msix_ctrl = pcie.register(msix_cap_addr+2, 2)
+    logging.info("msix_ctrl register [0x%x]= 0x%x"% (msix_cap_addr+2, msix_ctrl))
+    msix_table = pcie.register(msix_cap_addr+4, 4)
+    logging.info("msix_table offset [0x%x]= 0x%x"% (msix_cap_addr+4, msix_table))   
+    msix_pba = pcie.register(msix_cap_addr+8, 4)
+    logging.info("msix_pba offset [0x%x]= 0x%x"% (msix_cap_addr+8, msix_pba))   
+
+    q = d.Qpair(nvme0, 8)
+
+    q.msix_clear()
+    assert not q.msix_isset()
+    nvme0n1.read(q, buf, 0, 8)
+    time.sleep(0.1)
+    assert q.msix_isset()
+    q.waitdone() 
+
+    # Disable MSI-X bit
+    pcie[msix_cap_addr+3] =  ( msix_ctrl >> 8 ) & 0x7F
+    msix_ctrl = pcie.register(msix_cap_addr+2, 2)
+    logging.info("After disable msi-x, msix_ctrl register [0x%x]= 0x%x"% (msix_cap_addr+2, msix_ctrl))    
+    q.msix_clear()
+    assert not q.msix_isset()
+    nvme0n1.read(q, buf, 0, 8)
+    time.sleep(1)
+    assert not q.msix_isset()
+    q.waitdone()
+    q.delete()
