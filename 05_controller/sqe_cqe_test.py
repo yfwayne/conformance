@@ -193,7 +193,23 @@ def test_sq_cid2(nvme0):
     assert cq[1][3] == 0x10000
     sq.delete()
     cq.delete()
-    
+ 
+
+def test_sq_cid3(nvme0):
+    cq = IOCQ(nvme0, 1, 3, PRP())
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+
+    # send two same cid commands
+    sq[0] = SQE(4<<16+0, 1); 
+    sq[1] = SQE(4<<16+0, 1); sq.tail = 2; time.sleep(0.1)
+
+    # check cq
+    time.sleep(0.1)
+    # sc = 3, sct = 0 (Command ID Conflict )
+    assert cq[0][3]>>17 == 0x0003
+    sq.delete()
+    cq.delete()
+
 
 def test_sq_rsv(nvme0):
     cq = IOCQ(nvme0, 1, 3, PRP())
