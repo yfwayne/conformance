@@ -21,6 +21,7 @@
 import time
 import pytest
 import logging
+import nvme as d
 
 from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
@@ -198,6 +199,7 @@ def test_identify_offset(nvme0, nvme0n1, qpair, offset):
 def test_identify_offset_invalid(nvme0, nvme0n1, qpair, offset):
     buf = d.Buffer(4096, 'controller identify data')
     buf.offset = offset
+    # pytest warning may not appear here
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
         nvme0.identify(buf, 0, 1).waitdone()    
     
