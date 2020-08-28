@@ -90,6 +90,7 @@ def test_pcie_aspm_L1(pcie, nvme0, buf):
     pcie.aspm = 2
     buf = d.Buffer(4096, 'controller identify data')
     nvme0.identify(buf, 0, 1).waitdone()
+    time.sleep(1)
     #ASPM L0
     pcie.aspm = 0
     logging.info("model number: %s" % nvme0.id_data(63, 24, str))
