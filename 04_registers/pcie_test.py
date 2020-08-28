@@ -32,7 +32,9 @@ def test_pcie_identifiers(pcie):
     
 def test_pcie_command(pcie):
     logging.info("Command: 0x%x" % pcie.register(4, 2))
-    assert pcie.register(4, 2)&0x2 != 0
+    #check Memory Space Enable = 1
+    assert pcie.register(4, 2)&0x2 != 0   
+    #check reserved field
     assert pcie.register(4, 2)&0xf800 == 0
 
     
@@ -157,6 +159,8 @@ def test_pcie_link_control_aspm(nvme0, pcie, aspm): #1:0
     cq.delete()
 
     time.sleep(1)
+    #return ASPM L0
+    pcie[linkctrl_addr] = (linkctrl&0xfc)|0
     
 
 def test_pcie_cold_reset(subsystem, nvme0, buf):
