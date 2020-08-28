@@ -40,15 +40,15 @@ def sq(nvme0, cq):
 
 
 def test_compare_lba_0(nvme0, nvme0n1, buf, qpair):
-    oncs = nvme0.id_data(521, 520)
-    if oncs & 0x1 == 0:
+    if nvme0n1.supports(5) == 0:
         pytest.skip("Compare command is not supported")
 
     ncap = nvme0n1.id_data(15, 8)
     nvme0n1.write(qpair, buf, 1, 1).waitdone()
     nvme0n1.write(qpair, buf, 0, 1).waitdone()
     nvme0n1.compare(qpair, buf, 0).waitdone()
-
+    
+    #Restore buf[0] value
     orig = buf[0]
     with pytest.warns(UserWarning, match="ERROR status: 02/85"):
         nvme0n1.compare(qpair, buf, ncap-1).waitdone()
@@ -56,7 +56,7 @@ def test_compare_lba_0(nvme0, nvme0n1, buf, qpair):
         buf[0] += 1
         nvme0n1.compare(qpair, buf, 0).waitdone()
     buf[0] = orig
-    with pytest.warns(UserWarning, match=("ERROR status: 02/85")):
+    with pytest.warns(UserWarning, match="ERROR status: 02/85"):
         nvme0n1.compare(qpair, buf, 0, 2).waitdone()
 
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
@@ -69,6 +69,7 @@ def test_compare_lba_0(nvme0, nvme0n1, buf, qpair):
         nvme0n1.compare(qpair, buf, 0x100000000).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/80"):
         nvme0n1.compare(qpair, buf, ncap-1, 2).waitdone()
+    #ERROR status 00/02 or 00/80,it's depend on FW
     with pytest.warns(UserWarning, match="ERROR status: 00/(02|80)"):
         nvme0n1.compare(qpair, buf, ncap, 0x1000).waitdone()
 
