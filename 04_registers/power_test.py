@@ -21,6 +21,7 @@
 import time
 import pytest
 import logging
+import nvme as d
 
 from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 
@@ -84,6 +85,15 @@ def test_pcie_capability_d3hot(pcie, nvme0n1):
     assert pcie.power_state == 0
     
 
+def test_pcie_aspm_L1(pcie, nvme0, buf):
+    #ASPM L1
+    pcie.aspm = 2
+    buf = d.Buffer(4096, 'controller identify data')
+    nvme0.identify(buf, 0, 1).waitdone()
+    #ASPM L0
+    pcie.aspm = 0
+    logging.info("model number: %s" % nvme0.id_data(63, 24, str))
+
 def test_pcie_aspm_l1_and_d3hot(pcie, nvme0n1):
     pcie.aspm = 2
     assert pcie.aspm == 2
@@ -113,4 +123,66 @@ def test_pcie_aspm_l1_and_d3hot(pcie, nvme0n1):
     nvme0n1.ioworker(io_size=2, time=2).start().close()
 
 
+   def test_pcie_ioworker_aspm(pcie, nvme0, buf, aspm):
+    region_end = 256*1000*1000  # 1GB
+    qdepth = min(1024, 1+(nvme0.cap&0xffff))
     
+    # get the unsafe shutdown count
+    def power_cycle_count():
+        buf = d.Buffer(4096)
+        nvme0.getlogpage(2, buf, 512).waitdone()
+        return buf.data(115, 112)
+    
+    # run the test one by one
+    subsystem = d.Subsystem(nvme0)
+    nvme0n1 = d.Namespace(nvme0, 1, region_end)
+    orig_unsafe_count = power_cycle_count()
+    logging.info("power cycle count: %d" % orig_unsafe_count)
+
+    # 128K random write
+    cmdlog_list = [None]*1000
+    with nvme0n1.ioworker(io_size=256,
+                          lba_random=True,
+                          read_percentage=30,
+                          region_end=region_end,
+                          time=10,
+                          qdepth=qdepth, 
+                          output_cmdlog_list=cmdlog_list):
+        # change ASPM status before the ioworker end
+        time.sleep(5)
+        pcie.aspm = aspm
+    # verify data in cmdlog_list
+    time.sleep(5)
+    assert True == nvme0n1.verify_enable(True)
+    logging.info(cmdlog_list[-10:])
+    read_buf = d.Buffer(256*512)
+    qpair = d.Qpair(nvme0, 10)
+    for cmd in cmdlog_list:
+        slba = cmd[0]
+        nlba = cmd[1]
+        op = cmd[2]
+        if nlba:
+            def read_cb(cdw0, status1):
+                nonlocal _slba
+                if status1>>1:
+                    logging.info("slba %d, 0x%x, _slba 0x%x, status 0x%x" % \
+                                 (slba, slba, _slba, status1>>1))
+                    
+            logging.debug("verify slba %d, nlba %d" % (slba, nlba))
+            _nlba = nlba//16
+            for i in range(16):
+                _slba = slba+i*_nlba
+                nvme0n1.read(qpair, read_buf, _slba, _nlba, cb=read_cb).waitdone()
+            
+            # re-write to clear CRC mismatch
+            nvme0n1.write(qpair, read_buf, slba, nlba, cb=read_cb).waitdone()
+    qpair.delete()
+    nvme0n1.close()
+
+    # verify unsafe shutdown count
+    unsafe_count = power_cycle_count()
+    logging.info("power cycle count: %d" % unsafe_count)
+    assert unsafe_count == orig_unsafe_count
+    time.sleep(5)
+    pcie.aspm = 0 
+
