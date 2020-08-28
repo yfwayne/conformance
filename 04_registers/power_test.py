@@ -122,8 +122,8 @@ def test_pcie_aspm_l1_and_d3hot(pcie, nvme0n1):
     assert pcie.power_state == 0
     nvme0n1.ioworker(io_size=2, time=2).start().close()
 
-
-   def test_pcie_ioworker_aspm(pcie, nvme0, buf, aspm):
+@pytest.mark.parametrize("aspm", [0,2])
+def test_pcie_ioworker_aspm(pcie, nvme0, buf, aspm):
     region_end = 256*1000*1000  # 1GB
     qdepth = min(1024, 1+(nvme0.cap&0xffff))
     
