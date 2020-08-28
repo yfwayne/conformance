@@ -26,15 +26,20 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 
-# TODO: invalid prp1/prp2 with identify cmd
 
 
 def test_create_cq_with_invalid_prp_offset(nvme0):
     prp = PRP(4096)
-
-    prp.offset = 2048
+    #Spec NVM-Express-1_4-2019.06.10-Ratified
+    #Figure 149: In both cases the PRP Entry shall have an offset of 0h.
+    prp.offset = 0
     IOCQ(nvme0, 1, 10, prp).delete()
     
+    #ERROR status: 00/13:invalid prp offset
+    prp.offset = 2048
+    with pytest.warns(UserWarning, match="ERROR status: 00/13"):
+        IOCQ(nvme0, 1, 10, prp).delete()
+
     prp.offset = 2050
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
         IOCQ(nvme0, 1, 10, prp).delete()
@@ -52,8 +57,14 @@ def test_create_sq_with_invalid_prp_offset(nvme0):
     prp = PRP(4096)
     cq = IOCQ(nvme0, 1, 10, prp)
 
-    prp.offset = 2048
+    #Spec NVM-Express-1_4-2019.06.10-Ratified
+    #Figure 153: In both cases, the PRP Entry shall have an offset of 0h.
+    prp.offset = 0
     IOSQ(nvme0, 1, 10, prp, cqid=1).delete()
+    
+    prp.offset = 2048
+    with pytest.warns(UserWarning, match="ERROR status: 00/13"):
+        IOSQ(nvme0, 1, 10, prp, cqid=1).delete()
     
     prp.offset = 2050
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
@@ -165,12 +176,31 @@ def test_page_offset_invalid(nvme0, nvme0n1, qpair, offset):
     # read the data to different offset and check lba
     buf = Buffer(1024, ptype=0, pvalue=1)
     buf.offset = offset
-    with pytest.warns(UserWarning, match="ERROR status: 00/"):
+
+    # Spec NVM-Express-1_4-2019.06.10-Ratified
+    # Figure 108:Note: The controller is not required to check that bits 1:0 
+    # are cleared to 00b. The controller may report an error of PRP Offset Invalid 
+    # pytest warning may not appear here
+    with pytest.warns(UserWarning, match="ERROR status: 00/13"):
         nvme0n1.read(qpair, buf, 0x5aa5).waitdone()
     assert buf[offset] == 0xff
     assert buf[offset+1] == 0xff
 
 
+@pytest.mark.parametrize("offset", [0, 4, 16, 32, 512, 800, 1024, 3000])
+def test_identify_offset(nvme0, nvme0n1, qpair, offset):
+    buf = d.Buffer(4096, 'controller identify data')
+    buf.offset = offset
+    nvme0.identify(buf, 0, 1).waitdone()    
+
+    
+@pytest.mark.parametrize("offset", [1, 2, 3, 501, 502])
+def test_identify_offset_invalid(nvme0, nvme0n1, qpair, offset):
+    buf = d.Buffer(4096, 'controller identify data')
+    buf.offset = offset
+    with pytest.warns(UserWarning, match="ERROR status: 00/13"):
+        nvme0.identify(buf, 0, 1).waitdone()    
+    
 def test_valid_offset_prp_in_list(nvme0):
     cq = IOCQ(nvme0, 1, 10, PRP())
     sq = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
