@@ -137,7 +137,7 @@ def test_write_mdts(nvme0, mdts):
     w1 = SQE(1, 1)
     w1.prp1 = write_buf_1
     w1.prp2 = prp_list_head
-    w1[12] = (mdts//8)-1 # 0based, nlba
+    w1[12] = mdts-1 # 0based, nlba
     w1.cid = 0x123
     sq[0] = w1
     sq.tail = 1

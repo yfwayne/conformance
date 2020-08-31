@@ -194,19 +194,20 @@ def test_sq_cid2(nvme0):
     sq.delete()
     cq.delete()
 
-def test_sq_cid3(nvme0):
-    mdts = nvme0.mdts
-    cq = IOCQ(nvme0, 1, 2, PRP())
-    sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
+def test_cid_conflict(nvme0):
+    mdts_lba = nvme0.mdts//512
+    cq = IOCQ(nvme0, 1, 20, PRP())
+    sq = IOSQ(nvme0, 1, 20, PRP(), cqid=1)
 
     # prp for the long buffer
     write_buf_1 = PRP(ptype=32, pvalue=0xaaaaaaaa)
-    pages = mdts//8
+    pages = mdts_lba//8
     pages -= 1
 
     prp_list = PRPList()
     prp_list_head = prp_list
     while pages:
+        logging.info(pages)
         for i in range(63):
             if pages:
                 prp_list[i] = PRP()
@@ -226,19 +227,24 @@ def test_sq_cid3(nvme0):
     w1 = SQE((1<<16)+1, 1)
     w1.prp1 = write_buf_1
     w1.prp2 = prp_list_head
-    w1[12] = (mdts//8)-1 # 0based, nlba
+    w1[12] = mdts_lba-1 # 0based, nlba
     sq[0] = w1
-    #send second cmd, cid is same with first cmd     
-    flush = SQE((1<<16)+0, 1)
-    sq[1] = flush
-    assert sq[0][0]>>16 == sq[1][0]>>16
+    sq[1] = w1
+    logging.info(sq[0])
+    logging.info(sq[1])
+    assert sq[0][0]>>16 == 1
+    assert sq[1][0]>>16 == 1
     sq.tail = 2
 
     time.sleep(1)
+    logging.info(cq[0])
+    logging.info(cq[1])
     cqe = CQE(cq[0])
-    logging.info(cqe)
     assert cqe.p == 1
-    assert (cq[0][3]>>17) == 0x0003
+    assert (cq[0][3]>>17)&0x3ff == 0
+    cqe = CQE(cq[1])
+    assert cqe.p == 1
+    assert (cq[0][3]>>17)&0x3ff == 0
     cq.head = 2
 
     sq.delete()
