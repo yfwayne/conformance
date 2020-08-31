@@ -193,7 +193,56 @@ def test_sq_cid2(nvme0):
     assert cq[1][3] == 0x10000
     sq.delete()
     cq.delete()
-    
+
+def test_sq_cid3(nvme0):
+    mdts = nvme0.mdts
+    cq = IOCQ(nvme0, 1, 2, PRP())
+    sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
+
+    # prp for the long buffer
+    write_buf_1 = PRP(ptype=32, pvalue=0xaaaaaaaa)
+    pages = mdts//8
+    pages -= 1
+
+    prp_list = PRPList()
+    prp_list_head = prp_list
+    while pages:
+        for i in range(63):
+            if pages:
+                prp_list[i] = PRP()
+                pages -= 1
+                logging.debug(pages)
+        if pages>1:
+            tmp = PRPList()
+            prp_list[63] = tmp
+            prp_list = tmp
+            logging.debug("prp_list")
+        elif pages==1:
+            prp_list[63] = PRP()
+            pages -= 1
+            logging.debug(pages)
+
+    #send first cmd   
+    w1 = SQE((1<<16)+1, 1)
+    w1.prp1 = write_buf_1
+    w1.prp2 = prp_list_head
+    w1[12] = (mdts//8)-1 # 0based, nlba
+    sq[0] = w1
+    #send second cmd, cid is same with first cmd     
+    flush = SQE((1<<16)+0, 1)
+    sq[1] = flush
+    assert sq[0][0]>>16 == sq[1][0]>>16
+    sq.tail = 2
+
+    time.sleep(1)
+    cqe = CQE(cq[0])
+    logging.info(cqe)
+    assert cqe.p == 1
+    assert (cq[0][3]>>17) == 0x0003
+    cq.head = 2
+
+    sq.delete()
+    cq.delete()   
 
 def test_sq_rsv(nvme0):
     cq = IOCQ(nvme0, 1, 3, PRP())
