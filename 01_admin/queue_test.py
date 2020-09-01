@@ -278,11 +278,28 @@ def test_create_sq_with_invalid_cqid(nvme0, mqes):
         IOSQ(nvme0, 1, mqes, PRP(4096), cqid=mqes+0xff)
     
 
-def test_create_cq_invalid_interrupt_vector(nvme0):
+def test_create_cq_invalid_interrupt_vector(nvme0, pcie):
+    msicap_addr = pcie.cap_offset(0x05)
+    msicap = pcie.register(msicap_addr, 4)
+    logging.info("MSI Enable: %d" % ((msicap>>16)&0x1))
+    logging.info("Multiple Message Capable: %d" % ((msicap>>17)&0x7))
+    logging.info("Multiple Message Enable: %d" % ((msicap>>20)&0x7))
+    if ((msicap>>20)&0x7) :
+        invalid_iv = ((msicap>>17)&0x7) + 2
+        logging.info("invalid_iv: %d" % invalid_iv)
+
+    msixcap_addr = pcie.cap_offset(0x11)
+    msixcap = pcie.register(msixcap_addr, 4)
+    logging.info("Table Size: %d" % ((msixcap>>16)&0x3ff))
+    logging.info("MSI-X Enable: %d" % ((msixcap>>31)&0x1))
+    if ((msixcap>>31)&0x1) :
+        invalid_iv = ((msixcap>>16)&0x3ff) + 2
+        logging.info("invalid_iv: %d" % invalid_iv)
+
     with pytest.warns(UserWarning, match="ERROR status: 01/08"):
-        IOCQ(nvme0, 1, 10, PRP(4096), iv=0xff)
+        IOCQ(nvme0, 1, 10, PRP(4096), iv=invalid_iv, ien=True)
     with pytest.warns(UserWarning, match="ERROR status: 01/08"):
-        IOCQ(nvme0, 1, 10, PRP(4096), iv=2047)
+        IOCQ(nvme0, 1, 10, PRP(4096), iv=2047, ien=True)
 
 
 def test_create_cq_invalid_queue_address_offset(nvme0):
