@@ -196,6 +196,8 @@ def test_dst_abort_by_sanitize(nvme0, nvme0n1, stc, nsid=1):
     nvme0.aer(cb)
 
     nvme0.dst(stc, nsid).waitdone()
+    nvme0.getlogpage(0x6, buf, 32).waitdone()
+    assert buf[0]
 
     nvme0.sanitize().waitdone()  # sanitize command is completed
 
@@ -211,6 +213,10 @@ def test_dst_abort_by_sanitize(nvme0, nvme0n1, stc, nsid=1):
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
+    vs = nvme0[8]
+    logging.info("%d" %vs)
+    if vs >= 0x010400:
+        assert buf[4]&0xf == 0x09
 
 
 @pytest.mark.parametrize("stc", [1, 2])
@@ -242,3 +248,7 @@ def test_dst_after_sanitize(nvme0, nvme0n1, stc, nsid=1):
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
+    vs = nvme0[8]
+    logging.info("%d" %vs)
+    if vs >= 0x010400:
+        assert buf[4]&0xf == 0x09
