@@ -40,7 +40,7 @@ def sq(nvme0, cq):
 
 
 def test_compare_lba_0(nvme0, nvme0n1, buf, qpair):
-    if nvme0n1.supports(5) == 0:
+    if not nvme0n1.supports(5):
         pytest.skip("Compare command is not supported")
 
     ncap = nvme0n1.id_data(15, 8)
