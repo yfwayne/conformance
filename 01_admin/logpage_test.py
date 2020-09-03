@@ -144,8 +144,8 @@ def test_getlogpage_namespace(nvme0, buf):
     nvme0.getlogpage(2, buf, nsid=1).waitdone()
     nvme0.getlogpage(2, buf, nsid=0xffffffff).waitdone()
 
-    with pytest.warns(UserWarning, match="ERROR status: 00/0b"):
-        nvme0.getlogpage(2, buf, nsid=0).waitdone()
+    # getlogpage for id=2 nsid can be 0 or 0xffffffff
+    nvme0.getlogpage(2, buf, nsid=0).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/0b"):
         nvme0.getlogpage(2, buf, nsid=2).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/0b"):
