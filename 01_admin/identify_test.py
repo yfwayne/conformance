@@ -95,7 +95,7 @@ def test_identify_name_utilitzation(nvme0, nvme0n1, buf):
     buf.set_dsm_range(0, 0, 8)
     nvme0n1.dsm(q, buf, 1).waitdone()
     nuse = nvme0n1.id_data(23, 16)
-    assert nuse == orig_nuse-8
+    assert nuse <= orig_nuse
 
     # write lba 0
     nvme0n1.write(q, buf, 0, 8).waitdone()
@@ -118,3 +118,19 @@ def test_identify_reserved_cns(nvme0, buf):
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):
         nvme0.identify(buf, nsid=1, cns=0xff).waitdone()
     
+def test_identify_nsze_ncap_nuse(nvme0, nvme0n1, buf):
+    nsze = nvme0n1.id_data(7, 0)
+    ncap = nvme0n1.id_data(15, 8)
+    nuse = nvme0n1.id_data(23, 16)
+    logging.info("nsze=0x%x,ncap=0x%x,nuse=0x%x" % (nsze,ncap,nuse))
+
+    # Namespace Size >= Namespace Capacity >= Namespace Utilization
+    assert nsze >= ncap >= nuse
+
+    #if ANA reporting supported and in inaccessible or Persistent Loss state, nuse=0
+    ana = nvme0.id_data(76, 76)
+    ana_reporting = ana & 0x8
+    ANACAP = nvme0.id_data(343, 343)
+    inaccessible_loss = ANACAP & 0xc
+    if ana_reporting and inaccessible_loss:
+        assert nuse == 0
