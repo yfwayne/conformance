@@ -26,6 +26,11 @@ import warnings
 from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 
 
+def test_powercycle_by_sleep(subsystem, nvme0):
+    # sleep system for 10 seconds, to make DUT power off and on
+    subsystem.power_cycle()
+
+
 @pytest.mark.parametrize("nsid", [0, 1, 0xffffffff])
 @pytest.mark.parametrize("stc", [1, 2])
 def test_dst(nvme0, nsid, stc):
