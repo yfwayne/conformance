@@ -199,7 +199,7 @@ def test_identify_offset(nvme0, offset):
 
     
 @pytest.mark.parametrize("offset", [1, 2, 3, 501, 502])
-def _test_identify_offset_invalid(nvme0, nvme0n1, qpair, offset):
+def test_identify_offset_invalid(nvme0, nvme0n1, qpair, offset):
     buf = d.Buffer(4096*2, 'controller identify data')
     buf.offset = offset
     # pytest warning may not appear here
