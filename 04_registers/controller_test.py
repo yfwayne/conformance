@@ -228,27 +228,110 @@ def test_controller_cc_css(nvme0):
     logging.info("css:{}".format(css))
 
 
-def test_controller_mdts(nvme0,nvme0n1,qpair,buf):
+def test_controller_mdts(nvme0,nvme0n1):
     mps_min = (nvme0.cap>>48) & 0xf
     logging.info("mps_min:{}".format(mps_min))
 
     mdts=nvme0.id_data(77,77)
     logging.info("mdts:{}".format(mdts))
     max_data_size=(2**mdts)*(2**(12+mps_min))
+    logging.info(max_data_size)
+    max_pages=max_data_size//4//1024
+    pages=max_pages-1
+    max_lba=max_data_size//512
 
-    nvme0n1.ioworker(io_size=8,
-                     lba_random=False,
-                     qdepth=2,
-                     region_end=100).start().close()
+    cq = IOCQ(nvme0, 1, 5, PRP())
+    sq = IOSQ(nvme0, 1, 5, PRP(), cqid=1)
 
-    with pytest.warns(UserWarning, match="ERROR status: 00/02"):
-        nvme0n1.read(qpair, Buffer(4096*100), 0,max_data_size//512+5).waitdone()
+    # prp for the long buffer
+    write_buf_1 = PRP(ptype=32, pvalue=0xaaaaaaaa)
+    prp_list = PRPList()
+    prp_list_head = prp_list
+    while pages:
+        for i in range(511):
+            if pages:
+                prp_list[i] = PRP()
+                pages -= 1
+                logging.debug(pages)
 
+        if pages>1:
+            tmp = PRPList()
+            prp_list[511] = tmp
+            prp_list = tmp
+            logging.debug("prp_list")
 
-    nvme0n1.read(qpair, Buffer(4096*100), 0,max_data_size//512-5).waitdone()
+        elif pages==1:
+            prp_list[511] = PRP()
+            pages -= 1
+            logging.debug(pages)
 
-    with pytest.warns(UserWarning, match="ERROR status: 00/02"):
-        nvme0n1.write(qpair, Buffer(4096*100), 0,max_data_size//512+5).waitdone()
+    w1 = SQE(1, 1)
+    w1.prp1 = write_buf_1
+    w1.prp2 = prp_list_head
+    w1[12] = max_lba-1 # 0based, nlba
+    w1.cid = 0x123
+    sq[0] = w1
+    sq.tail = 1
 
+    time.sleep(1)
+    cqe = CQE(cq[0])
+    logging.info(cqe)
+    assert cqe.p == 1
+    assert cqe.cid == 0x123
+    assert cqe.sqhd == 1
+    assert cqe.status == 0
+    cq.head = 1
 
-    nvme0n1.write(qpair, Buffer(4096*100), 0,max_data_size//512-5).waitdone()
+    w2 = SQE(1, 1)
+    w2.prp1 = write_buf_1
+    w2.prp2 = prp_list_head
+    w2[12] = max_lba # 0based, nlba
+    w2.cid = 0x234
+    sq[1] = w2
+    sq.tail = 2
+
+    time.sleep(1)
+    cqe = CQE(cq[1])
+    logging.info(cqe)
+    assert cqe.p == 1
+    assert cqe.cid == 0x234
+    assert cqe.sqhd == 2
+    assert cqe.status == 2
+    cq.head = 2
+
+    r1 = SQE(2, 1)
+    r1.prp1 = write_buf_1
+    r1.prp2 = prp_list_head
+    r1[12] = max_lba # 0based, nlba
+    r1.cid = 0x345
+    sq[2] = r1
+    sq.tail = 3
+
+    time.sleep(1)
+    cqe = CQE(cq[2])
+    logging.info(cqe)
+    assert cqe.p == 1
+    assert cqe.cid == 0x345
+    assert cqe.sqhd == 3
+    assert cqe.status == 2
+    cq.head = 3
+
+    r2 = SQE(2, 1)
+    r2.prp1 = write_buf_1
+    r2.prp2 = prp_list_head
+    r2[12] = max_lba-1 # 0based, nlba
+    r2.cid = 0x456
+    sq[3] = r2
+    sq.tail = 4
+
+    time.sleep(1)
+    cqe = CQE(cq[3])
+    logging.info(cqe)
+    assert cqe.p == 1
+    assert cqe.cid == 0x456
+    assert cqe.sqhd == 4
+    assert cqe.status == 0
+    cq.head = 4
+
+    sq.delete()
+    cq.delete()

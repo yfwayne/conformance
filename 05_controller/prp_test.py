@@ -35,7 +35,7 @@ def test_create_cq_with_invalid_prp_offset(nvme0):
     #Figure 149: In both cases the PRP Entry shall have an offset of 0h.
     prp.offset = 0
     IOCQ(nvme0, 1, 10, prp).delete()
-    
+
     #ERROR status: 00/13:invalid prp offset
     prp.offset = 2048
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
@@ -44,7 +44,7 @@ def test_create_cq_with_invalid_prp_offset(nvme0):
     prp.offset = 2050
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
         IOCQ(nvme0, 1, 10, prp).delete()
-    
+
     prp.offset = 4095
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
         IOCQ(nvme0, 2, 10, prp).delete()
@@ -53,7 +53,7 @@ def test_create_cq_with_invalid_prp_offset(nvme0):
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
         IOCQ(nvme0, 2, 10, prp).delete()
 
-        
+
 def test_create_sq_with_invalid_prp_offset(nvme0):
     prp = PRP(4096)
     cq = IOCQ(nvme0, 1, 10, prp)
@@ -62,23 +62,23 @@ def test_create_sq_with_invalid_prp_offset(nvme0):
     #Figure 153: In both cases, the PRP Entry shall have an offset of 0h.
     prp.offset = 0
     IOSQ(nvme0, 1, 10, prp, cqid=1).delete()
-    
+
     prp.offset = 2048
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
         IOSQ(nvme0, 1, 10, prp, cqid=1).delete()
-    
+
     prp.offset = 2050
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
         IOSQ(nvme0, 1, 10, prp, cqid=1).delete()
-    
+
     prp.offset = 4095
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
         IOSQ(nvme0, 2, 10, prp, cqid=1).delete()
-        
+
     prp.offset = 255
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
         IOSQ(nvme0, 2, 10, prp, cqid=1).delete()
-        
+
     cq.delete()
 
 
@@ -105,9 +105,10 @@ def test_hello_world(nvme0, nvme0n1, repeat):
 def test_format_512(nvme0n1):
     nvme0n1.format(512)
 
-    
-@pytest.mark.parametrize("mdts", [64, 128, 256, 512, 800, 1024, 16*1024, 32*1024, 32*1024+64, 32*1024+64+8, 64*1024])
+
+@pytest.mark.parametrize("mdts", [64, 128, 256, 512, 800, 1024, 16*1024, 32*1024, 32*1024+64, 32*1024+64+8])
 def test_write_mdts(nvme0, mdts):
+
     cq = IOCQ(nvme0, 1, 2, PRP())
     sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
 
@@ -119,21 +120,21 @@ def test_write_mdts(nvme0, mdts):
     prp_list = PRPList()
     prp_list_head = prp_list
     while pages:
-        for i in range(63):
+        for i in range(511):
             if pages:
                 prp_list[i] = PRP()
                 pages -= 1
                 logging.debug(pages)
         if pages>1:
             tmp = PRPList()
-            prp_list[63] = tmp
+            prp_list[511] = tmp
             prp_list = tmp
             logging.debug("prp_list")
         elif pages==1:
-            prp_list[63] = PRP()
+            prp_list[511] = PRP()
             pages -= 1
             logging.debug(pages)
-            
+
     w1 = SQE(1, 1)
     w1.prp1 = write_buf_1
     w1.prp2 = prp_list_head
@@ -148,12 +149,13 @@ def test_write_mdts(nvme0, mdts):
     assert cqe.p == 1
     assert cqe.cid == 0x123
     assert cqe.sqhd == 1
-    assert cqe.status == 0
+    logging.info("cqe status is {}".format(cqe.status))
+    assert cqe.status == 0 or cqe.status == 2
     cq.head = 1
 
     sq.delete()
     cq.delete()
-    
+
 
 @pytest.mark.parametrize("offset", [0, 4, 16, 32, 512, 800, 1024, 3000])
 def test_page_offset(nvme0, nvme0n1, qpair, buf, offset):
@@ -179,8 +181,8 @@ def test_page_offset_invalid(nvme0, nvme0n1, qpair, offset):
     buf.offset = offset
 
     # Spec NVM-Express-1_4-2019.06.10-Ratified
-    # Figure 108:Note: The controller is not required to check that bits 1:0 
-    # are cleared to 00b. The controller may report an error of PRP Offset Invalid 
+    # Figure 108:Note: The controller is not required to check that bits 1:0
+    # are cleared to 00b. The controller may report an error of PRP Offset Invalid
     # pytest warning may not appear here
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
         nvme0n1.read(qpair, buf, 0x5aa5).waitdone()
@@ -197,23 +199,23 @@ def test_identify_offset(nvme0, offset):
     assert buf[0] == 0
     assert buf[offset] != 0
 
-    
+
 @pytest.mark.parametrize("offset", [1, 2, 3, 501, 502])
 def test_identify_offset_invalid(nvme0, nvme0n1, qpair, offset):
     buf = d.Buffer(4096*2, 'controller identify data')
     buf.offset = offset
     # pytest warning may not appear here
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
-        nvme0.identify(buf).waitdone()    
+        nvme0.identify(buf).waitdone()
 
-        
+
 def test_valid_offset_prp_in_list(nvme0):
     cq = IOCQ(nvme0, 1, 10, PRP())
     sq = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
 
     buf = PRP(ptype=32, pvalue=0xffffffff)
     buf.offset = 0x10
-    
+
     prp_list = PRPList()
     prp_list.offset = 0x20
 
@@ -225,7 +227,7 @@ def test_valid_offset_prp_in_list(nvme0):
     print(buf.dump(32))
     for i in range(8):
         print(prp_list[i].dump(32))
-    
+
     cmd = SQE(2, 1)
     cmd.prp1 = buf
     cmd.prp2 = prp_list
@@ -245,14 +247,14 @@ def test_valid_offset_prp_in_list(nvme0):
     sq.delete()
     cq.delete()
 
-    
+
 def test_invalid_offset_prp_in_list(nvme0):
     cq = IOCQ(nvme0, 1, 10, PRP())
     sq = IOSQ(nvme0, 1, 10, PRP(), cqid=1)
 
     buf = PRP(ptype=32, pvalue=0xffffffff)
     buf.offset = 0x10
-    
+
     prp_list = PRPList()
     prp_list.offset = 0x20
 
@@ -265,7 +267,7 @@ def test_invalid_offset_prp_in_list(nvme0):
     print(buf.dump(32))
     for i in range(8):
         print(prp_list[i].dump(32))
-    
+
     cmd = SQE(2, 1)
     cmd.prp1 = buf
     cmd.prp2 = prp_list
@@ -285,4 +287,4 @@ def test_invalid_offset_prp_in_list(nvme0):
     sq.delete()
     cq.delete()
 
-    
+
