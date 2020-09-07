@@ -106,7 +106,7 @@ def test_format_512(nvme0n1):
     nvme0n1.format(512)
 
 
-@pytest.mark.parametrize("mdts", [64, 128, 256, 512, 800, 1024, 16*1024, 32*1024, 32*1024+64, 32*1024+64+8])
+@pytest.mark.parametrize("mdts", [64, 128, 256, 512, 800, 1024, 16*1024, 32*1024, 32*1024+64, 32*1024+64+8,64*1024])
 def test_write_mdts(nvme0, mdts):
 
     cq = IOCQ(nvme0, 1, 2, PRP())
