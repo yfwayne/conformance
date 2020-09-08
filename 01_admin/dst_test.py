@@ -151,7 +151,7 @@ def test_dst_short_abort_by_reset(nvme0):
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
-    assert buf[4] == 0x11
+    assert buf[4] == 0x12
 
 
 def test_dst_extended_abort_by_reset(nvme0):
@@ -166,7 +166,7 @@ def test_dst_extended_abort_by_reset(nvme0):
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
-    assert buf[4] == 0x21
+    assert buf[4] == 0x22
     
     nvme0.dst(0xf, 0).waitdone()
     nvme0.getlogpage(0x6, buf, 32).waitdone()
