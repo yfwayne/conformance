@@ -97,6 +97,12 @@ def test_dst_abort(nvme0, nsid, stc):
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
+    print(buf.dump(64))
+    assert not buf[0]
+    if stc == 1:
+        assert buf[4] == 0x11  
+    if stc == 2:
+        assert buf[4] == 0x21   
 
 
 def test_dst_invalid_stc(nvme0, nsid=1):
@@ -126,7 +132,12 @@ def test_dst_abort_by_format(nvme0, nvme0n1, stc, nsid=1):
 
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
+    print(buf.dump(64))
     assert not buf[0]
+    if stc == 1:
+        assert buf[4] == 0x14
+    if stc == 2:
+        assert buf[4] == 0x24
 
 
 def test_dst_short_abort_by_reset(nvme0):
@@ -141,6 +152,7 @@ def test_dst_short_abort_by_reset(nvme0):
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
+    assert buf[4] == 0x11
 
 
 def test_dst_extended_abort_by_reset(nvme0):
@@ -154,11 +166,13 @@ def test_dst_extended_abort_by_reset(nvme0):
 
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
-    assert buf[0]
-
+    assert not buf[0]
+    assert buf[4] == 0x21
+    
     nvme0.dst(0xf, 0).waitdone()
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
+    
 
 
 def test_pcie_reset_setup(pcie, nvme0):
@@ -166,7 +180,7 @@ def test_pcie_reset_setup(pcie, nvme0):
     nvme0.reset()
 
 
-def test_dst_extended_abort_by_subsystem_reset(nvme0, subsystem):
+def test_dst_extended_abort_by_subsystem_reset(nvme0, subsystem, pcie):
     buf = Buffer(4096)
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
@@ -179,7 +193,9 @@ def test_dst_extended_abort_by_subsystem_reset(nvme0, subsystem):
 
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
-    assert buf[0]
+    print(buf.dump(64))
+    assert not buf[0]
+    assert buf[4] == 0x22
 
     nvme0.dst(0xf, 0).waitdone()
     nvme0.getlogpage(0x6, buf, 32).waitdone()
@@ -218,6 +234,10 @@ def test_dst_abort_by_sanitize(nvme0, nvme0n1, stc, nsid=1):
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
+    if stc == 1:
+        assert buf[4]&0xf0 == 1
+    if stc == 2:   
+        assert buf[4]&0xf0 == 2
     vs = nvme0[8]
     logging.info("%d" %vs)
     if vs >= 0x010400:
@@ -253,6 +273,10 @@ def test_dst_after_sanitize(nvme0, nvme0n1, stc, nsid=1):
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
+    if stc == 1:
+        assert buf[4]&0xf0 == 1
+    if stc == 2:   
+        assert buf[4]&0xf0 == 2
     vs = nvme0[8]
     logging.info("%d" %vs)
     if vs >= 0x010400:
