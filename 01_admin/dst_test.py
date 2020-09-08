@@ -179,7 +179,7 @@ def test_pcie_reset_setup(pcie, nvme0):
     nvme0.reset()
 
 
-def test_dst_extended_abort_by_subsystem_reset(nvme0, subsystem):
+def test_dst_extended_abort_by_subsystem_reset(nvme0, subsystem, pcie):
     buf = Buffer(4096)
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
@@ -188,6 +188,7 @@ def test_dst_extended_abort_by_subsystem_reset(nvme0, subsystem):
 
     time.sleep(2)
     subsystem.reset()
+    pcie.reset()
     nvme0.reset()
 
     # check if dst aborted
@@ -280,3 +281,4 @@ def test_dst_after_sanitize(nvme0, nvme0n1, stc, nsid=1):
     logging.info("%d" %vs)
     if vs >= 0x010400:
         assert buf[4]&0xf == 0x09
+ 
