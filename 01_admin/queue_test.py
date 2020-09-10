@@ -47,12 +47,12 @@ def test_create_cq_basic_operation(nvme0, nvme0n1, buf, qpair):
     for i in range(10):
         nvme0n1.read(qpair, buf, 0)
     qpair.waitdone(10)
-    
-    
+
+
 def test_create_cq_with_invalid_id(nvme0, ncqa):
     # pass case
     cq = IOCQ(nvme0, 5, 10, PRP(4096))
-    
+
     # cqid: 0
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         IOCQ(nvme0, 0, 10, PRP(4096))
@@ -69,7 +69,7 @@ def test_create_cq_with_invalid_id(nvme0, ncqa):
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         IOCQ(nvme0, 5, 10, PRP(4096))
     cq.delete()
-    
+
     # cqid: 0xff
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         IOCQ(nvme0, ncqa+0xff, 10, PRP(4096))
@@ -100,15 +100,15 @@ def test_create_sq_with_invalid_id(nvme0, ncqa):
 
     # sqid: 0
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
-        IOSQ(nvme0, 0, 10, PRP(4096), cqid=1)    
-        
+        IOSQ(nvme0, 0, 10, PRP(4096), cqid=1)
+
     # sqid: 0xdead
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
-        IOSQ(nvme0, 0xdead, 10, PRP(4096), cqid=1)    
-        
+        IOSQ(nvme0, 0xdead, 10, PRP(4096), cqid=1)
+
     # sqid: 0xff
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
-        IOSQ(nvme0, ncqa+0xff, 10, PRP(4096), cqid=1)    
+        IOSQ(nvme0, ncqa+0xff, 10, PRP(4096), cqid=1)
 
     sq.delete()
     cq.delete()
@@ -117,11 +117,11 @@ def test_create_sq_with_invalid_id(nvme0, ncqa):
 def test_delete_cq_with_invalid_id(nvme0, ncqa):
     def delete_cq(nvme0, qid):
         nvme0.send_cmd(0x04, cdw10 = qid).waitdone()
-        
+
     # pass case
     IOCQ(nvme0, 5, 10, PRP(4096))
     delete_cq(nvme0, 5)
-    
+
     # cqid: 0
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         delete_cq(nvme0, 0)
@@ -141,12 +141,12 @@ def test_delete_cq_with_invalid_id(nvme0, ncqa):
     # cqid: not existed
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         delete_cq(nvme0, 5)
-        
-        
+
+
 def test_delete_sq_with_invalid_id(nvme0, ncqa):
     def delete_sq(nvme0, qid):
         nvme0.send_cmd(0x00, cdw10 = qid).waitdone()
-        
+
     # pass case
     cq = IOCQ(nvme0, 1, 10, PRP(4096))
     IOSQ(nvme0, 5, 10, PRP(4096), cqid=1)
@@ -168,12 +168,12 @@ def test_delete_sq_with_invalid_id(nvme0, ncqa):
     # sqid: duplicated cqid
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         delete_sq(nvme0, ncqa+0xff)
-        
+
     # sqid: not existed
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         delete_sq(nvme0, 5)
 
-        
+
 def test_delete_cq_with_sq(nvme0, nsq=3, sqid=2):
     cq = IOCQ(nvme0, 2, 10, PRP(4096))
     sq_list = []
@@ -202,7 +202,7 @@ def test_create_cq_with_invalid_queue_size(nvme0, mqes):
 
     with pytest.warns(UserWarning, match="ERROR status: 01/02"):
         IOCQ(nvme0, 1, mqes+1, PRP(4096))
-    
+
     with pytest.warns(UserWarning, match="ERROR status: 01/02"):
         IOCQ(nvme0, 1, mqes+2, PRP(4096))
 
@@ -217,10 +217,10 @@ def test_create_cq_with_invalid_queue_size(nvme0, mqes):
 
     IOCQ(nvme0, 1, 2, PRP(4096))
 
-        
+
 def test_create_sq_with_invalid_queue_size(nvme0, mqes):
     cq = IOCQ(nvme0, 2, 10, PRP(4096))
-    
+
     with pytest.warns(UserWarning, match="ERROR status: 01/02"):
         IOSQ(nvme0, 1, 0xffff, PRP(4096), cqid=2)
 
@@ -233,7 +233,7 @@ def test_create_sq_with_invalid_queue_size(nvme0, mqes):
 
     with pytest.warns(UserWarning, match="ERROR status: 01/02"):
         IOSQ(nvme0, 1, mqes+1, PRP(4096), cqid=2)
-    
+
     with pytest.warns(UserWarning, match="ERROR status: 01/02"):
         IOSQ(nvme0, 1, mqes+2, PRP(4096), cqid=2)
 
@@ -261,22 +261,25 @@ def test_create_sq_physically_contiguous(nvme0):
     cq.delete()
 
 
-def test_create_sq_with_invalid_cqid(nvme0, mqes):
+def test_create_sq_with_invalid_cqid(nvme0,mqes):
+    cdw0=nvme0.getfeatures(0x07).waitdone()
+    ncqr=(cdw0>>16)&0xffff
+
     with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         IOSQ(nvme0, 1, mqes, PRP(4096), cqid=0)
-    
-    with pytest.warns(UserWarning, match="ERROR status: 01/00"):
+
+    with pytest.warns(UserWarning, match="ERROR status: 01/01"):
         IOSQ(nvme0, 1, mqes, PRP(4096), cqid=0xffff)
-    
-    with pytest.warns(UserWarning, match="ERROR status: 01/00"):
-        IOSQ(nvme0, 1, mqes, PRP(4096), cqid=mqes)
-    
-    with pytest.warns(UserWarning, match="ERROR status: 01/00"):
-        IOSQ(nvme0, 1, mqes, PRP(4096), cqid=mqes+1)
 
     with pytest.warns(UserWarning, match="ERROR status: 01/00"):
-        IOSQ(nvme0, 1, mqes, PRP(4096), cqid=mqes+0xff)
-    
+        IOSQ(nvme0, 1, mqes, PRP(4096), cqid=ncqr)
+
+    with pytest.warns(UserWarning, match="ERROR status: 01/00"):
+        IOSQ(nvme0, 1, mqes, PRP(4096), cqid=ncqr+1)
+
+    with pytest.warns(UserWarning, match="ERROR status: 01/01"):
+        IOSQ(nvme0, 1, mqes, PRP(4096), cqid=ncqr+0xff)
+
 
 def test_create_cq_invalid_interrupt_vector(nvme0, pcie):
     msicap_addr = pcie.cap_offset(0x05)
@@ -308,14 +311,14 @@ def test_create_cq_invalid_queue_address_offset(nvme0):
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
         IOCQ(nvme0, 1, 10, queue)
 
-        
+
 def test_create_sq_invalid_queue_address_offset(nvme0):
     cq = IOCQ(nvme0, 3, 10, PRP(4096))
-    
+
     queue = PRP(4096)
     queue.offset = 1
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
         IOSQ(nvme0, 1, 10, queue, cqid=3)
-    
+
     cq.delete()
-    
+

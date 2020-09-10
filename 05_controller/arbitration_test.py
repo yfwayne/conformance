@@ -28,7 +28,7 @@ from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 def nvme_init_wrr(nvme0):
     logging.info("user defined nvme init")
-        
+
     nvme0[0x14] = 0
     while not (nvme0[0x1c]&0x1) == 0: pass
 
@@ -50,7 +50,7 @@ def nvme_init_wrr(nvme0):
 
     # 7. identify controller
     nvme0.identify(Buffer(4096)).waitdone()
-    
+
     # 8. create and identify all namespace
     nvme0.init_ns()
 
@@ -63,14 +63,14 @@ def nvme_init_wrr(nvme0):
 @pytest.fixture()
 def nvme0(pcie):
     return Controller(pcie, nvme_init_func=nvme_init_wrr)
-    
+
 @pytest.fixture()
 def nvme0n1(nvme0):
     ret = Namespace(nvme0, 1, 0x10000)
     yield ret
     ret.close()
 
-    
+
 def test_ioworker_with_wrr(nvme0, nvme0n1):
     if (nvme0.cap>>17) & 0x1 == 0:
         pytest.skip("WRR is not supported")
@@ -96,7 +96,7 @@ def test_ioworker_with_wrr(nvme0, nvme0n1):
     for a in l:
         r = a.start()
         w.append(r)
-        
+
     io_count = []
     for a in l:
         r = a.close()
@@ -109,7 +109,7 @@ def test_ioworker_with_wrr(nvme0, nvme0n1):
     assert io_count[0]/io_count[1] > 1.8
     assert io_count[0]/io_count[1] < 2.2
 
-    
+
 def test_weighed_round_robin(nvme0):
     if (nvme0.cap>>17) & 0x1 == 0:
         pytest.skip("WRR is not supported")
@@ -118,11 +118,11 @@ def test_weighed_round_robin(nvme0):
     nvme0.setfeatures(1, cdw11=0x07030103).waitdone()
     cdw0 = nvme0.getfeatures(1).waitdone()
     assert cdw0 == 0x07030103
-        
+
     start = time.time()
     nvme0.getfeatures(7).waitdone()
     logging.info("admin latency: %f" % (time.time()-start))
-    
+
     # create the senario of Figure 138 in NVMe spec v1.4
     # 1 admin, 2 urgent, 2 high, 2 medium, 2 low
     sq_list = []
@@ -143,7 +143,7 @@ def test_weighed_round_robin(nvme0):
     start = time.time()
     nvme0.getfeatures(7).waitdone()
     logging.info("admin latency when IO busy: %f" % (time.time()-start))
-    
+
     # check sqid of the whole cq
     time.sleep(1)
     logging.info([cq[i][2]>>16 for i in range(100*8)])
@@ -156,7 +156,7 @@ def test_weighed_round_robin(nvme0):
     for sq in sq_list:
         sq.delete()
     cq.delete()
-    
+
 
 def test_default_round_robin(nvme0):
     # 1 admin, 8 io queue
@@ -171,14 +171,14 @@ def test_default_round_robin(nvme0):
             sq[i] = SQE(i<<16+0, 1)
 
     # fire all sq, low prio first
-    for sq in sq_list[::-1]:
+    for sq in sq_list:
         sq.tail = 100
 
     # check the latency of admin command
     start = time.time()
     nvme0.getfeatures(7).waitdone()
     logging.info("admin latency when IO busy: %f" % (time.time()-start))
-    
+
     # check sqid of the whole cq
     time.sleep(1)
     #logging.info([cq[i][2]>>16 for i in range(100*8)])

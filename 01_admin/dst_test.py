@@ -192,7 +192,7 @@ def test_dst_extended_abort_by_subsystem_reset(nvme0, subsystem):
 
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
-    print(buf.dump(64))
+    logging.info(buf.dump(64))
     assert not buf[0]
     assert buf[4] == 0x22
 
