@@ -107,13 +107,16 @@ def test_controller_cap_mqes(nvme0):
     mqes=nvme0.cap&0xffff
     logging.info("mqes:{}".format(mqes))
     assert mqes >=1
+    
+    if mqes == 64*1024-1:
+        pytest.skip("")
 
     with pytest.warns(UserWarning, match="ERROR status: 01/02"):
-        cq = IOCQ(nvme0, 1, mqes+5, PRP())
+        cq = IOCQ(nvme0, 1, mqes+1, PRP())
 
     cq = IOCQ(nvme0, 1, mqes, PRP())
     with pytest.warns(UserWarning, match="ERROR status: 01/02"):
-        sq = IOSQ(nvme0, 1, mqes+5, PRP(), cqid=1)
+        sq = IOSQ(nvme0, 1, mqes+1, PRP(), cqid=1)
 
 
 def test_controller_ams(nvme0):

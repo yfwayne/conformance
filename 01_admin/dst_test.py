@@ -32,7 +32,7 @@ def test_powercycle_by_sleep(subsystem, nvme0):
 
 
 @pytest.mark.parametrize("nsid", [0, 1, 0xffffffff])
-@pytest.mark.parametrize("stc", [1, 2])
+@pytest.mark.parametrize("stc", [1])
 def test_dst(nvme0, nsid, stc):
     buf = Buffer(4096)
     nvme0.getlogpage(0x6, buf, 32).waitdone()
@@ -45,8 +45,23 @@ def test_dst(nvme0, nsid, stc):
     while buf[0]:
         time.sleep(1)
         nvme0.getlogpage(0x6, buf, 32).waitdone()
-        logging.info("current dst progress percentage: %d%%" % (buf[1] if(buf[1]) else 100))
+        logging.info("current dst progress percentage: %d%%" % buf[1])
 
+
+def test_dst_extended(nvme0, nsid=0, stc=2):
+    buf = Buffer(4096)
+    nvme0.getlogpage(0x6, buf, 32).waitdone()
+    assert not buf[0]
+
+    nvme0.dst(stc, nsid).waitdone()
+
+    # check dst log page till no dst in progress
+    nvme0.getlogpage(0x6, buf, 32).waitdone()
+    while buf[0]:
+        time.sleep(1)
+        nvme0.getlogpage(0x6, buf, 32).waitdone()
+        logging.info("current dst progress percentage: %d%%" % buf[1])
+        
 
 @pytest.mark.parametrize("nsid", [2, 3, 8, 10, 0xff, 0xfffffffe])
 @pytest.mark.parametrize("stc", [1, 2])
@@ -60,7 +75,7 @@ def test_dst_invalid_namespace(nvme0, nsid, stc):
 
 
 @pytest.mark.parametrize("nsid", [0, 1, 0xffffffff])
-@pytest.mark.parametrize("stc", [1, 2])
+@pytest.mark.parametrize("stc", [1])
 def test_dst_in_progress(nvme0, nsid, stc):
     buf = Buffer(4096)
     nvme0.getlogpage(0x6, buf, 32).waitdone()
@@ -127,7 +142,7 @@ def test_dst_abort_by_format(nvme0, nvme0n1, stc, nsid=1):
 
     nvme0.dst(stc, nsid).waitdone()
 
-    nvme0.format(0, 0).waitdone()
+    nvme0n1.format()
 
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
@@ -171,7 +186,6 @@ def test_dst_extended_abort_by_reset(nvme0):
     nvme0.dst(0xf, 0).waitdone()
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
-    
 
 
 def test_pcie_reset_setup(pcie, nvme0):

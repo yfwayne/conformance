@@ -26,6 +26,11 @@ import warnings
 from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 
 
+def test_dut_firmware_and_model_name(nvme0):
+    logging.info(nvme0.id_data(63, 24, str))
+    logging.info(nvme0.id_data(71, 64, str))
+
+    
 def test_abort_all_aer_commands(nvme0):
     aerl = nvme0.id_data(259)+1
     logging.info(aerl)

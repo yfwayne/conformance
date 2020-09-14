@@ -191,7 +191,7 @@ def test_page_offset_invalid(nvme0, nvme0n1, qpair, offset):
 
 
 @pytest.mark.parametrize("offset", [4, 16, 32, 512, 800, 1024, 3000])
-def test_identify_offset(nvme0, offset):
+def test_admin_page_offset(nvme0, offset):
     buf = d.Buffer(4096*2, 'controller identify data')
     buf.offset = offset
     assert buf[offset] == 0
@@ -201,7 +201,7 @@ def test_identify_offset(nvme0, offset):
 
 
 @pytest.mark.parametrize("offset", [1, 2, 3, 501, 502])
-def test_identify_offset_invalid(nvme0, nvme0n1, qpair, offset):
+def _test_admin_page_offset_invalid(nvme0, nvme0n1, qpair, offset):
     buf = d.Buffer(4096*2, 'controller identify data')
     buf.offset = offset
     # pytest warning may not appear here
