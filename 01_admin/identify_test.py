@@ -107,12 +107,11 @@ def test_identify_name_utilitzation(nvme0, nvme0n1, buf):
 
 
 def test_identify_namespace_identification_descriptor(nvme0, buf):
+    nvme0.identify(buf, nsid=1, cns=3).waitdone()
+    logging.info(buf.dump(64))
+    assert buf[0] != 0
     with pytest.warns(UserWarning, match="ERROR status: 00/0b"):
         nvme0.identify(buf, nsid=0, cns=3).waitdone()
-
-    nvme0.identify(buf, nsid=1, cns=3).waitdone()
-    assert buf[0] != 0
-    print(buf.dump(64))
 
 
 def test_identify_reserved_cns(nvme0, buf):

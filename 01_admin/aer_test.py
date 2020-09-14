@@ -116,13 +116,12 @@ def test_aer_sanitize(pcie, buf):
 
 
 def test_aer_mask_event(nvme0):
-    config = nvme0.getfeatures(0xb).waitdone()
-    assert config&1
-
+    orig_config_b = nvme0.getfeatures(0xb).waitdone()
+    
     # disable the SMART/health event
-    nvme0.setfeatures(0xb, cdw11=config&0xfffffffe).waitdone()
+    nvme0.setfeatures(0xb, cdw11=orig_config_b&~2).waitdone()
     config = nvme0.getfeatures(0xb).waitdone()
-    assert not config&1
+    assert not config&2
 
     # set temperature to generate event
     smart_log = Buffer()
@@ -132,18 +131,15 @@ def test_aer_mask_event(nvme0):
     logging.info("temperature: %d degreeF" % ktemp)
 
     # over composite temperature threshold
+    orig_config_4 = nvme0.getfeatures(4).waitdone()
     nvme0.setfeatures(4, cdw11=ktemp-10).waitdone()
 
-    # AER should be triggered here
-    with pytest.warns(UserWarning, match="AER notification is triggered"):
-        nvme0.getlogpage(0x02, smart_log, 512).waitdone()
-        nvme0.setfeatures(4, cdw11=ktemp-20).waitdone()
-        nvme0.getlogpage(0x02, smart_log, 512).waitdone()    
-        assert smart_log.data(0) & 0x2
+    # AER should not be triggered here
+    nvme0.getlogpage(0x02, smart_log, 512).waitdone()
+    logging.info(smart_log.data(0))
+    assert smart_log.data(0) & 0x2
     
-        # revert to default
-        orig_config = nvme0.getfeatures(4, sel=1).waitdone()
-        nvme0.setfeatures(4, cdw11=orig_config).waitdone()
-        
-    nvme0.setfeatures(0xb, cdw11=config).waitdone()
+    # revert to default
+    nvme0.setfeatures(4, cdw11=orig_config_4).waitdone()
+    nvme0.setfeatures(0xb, cdw11=orig_config_b).waitdone()
     

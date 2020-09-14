@@ -190,6 +190,9 @@ def test_delete_cq_with_sq(nvme0, nsq=3, sqid=2):
 
 
 def test_create_cq_with_invalid_queue_size(nvme0, mqes):
+    if mqes == 0x10000:
+        pytest.skip("no invalid queue size")
+        
     with pytest.warns(UserWarning, match="ERROR status: 01/02"):
         IOCQ(nvme0, 1, 0xffff, PRP(4096))
 
@@ -219,6 +222,9 @@ def test_create_cq_with_invalid_queue_size(nvme0, mqes):
 
 
 def test_create_sq_with_invalid_queue_size(nvme0, mqes):
+    if mqes == 0x10000:
+        pytest.skip("no invalid queue size")
+        
     cq = IOCQ(nvme0, 2, 10, PRP(4096))
 
     with pytest.warns(UserWarning, match="ERROR status: 01/02"):

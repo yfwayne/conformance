@@ -30,51 +30,38 @@ def test_features_fid_0(nvme0):
 
     
 def test_features_sel_00(nvme0):
-    orig_config = 0
-    def getfeatures_cb_1(cdw0, status):
-        nonlocal orig_config; orig_config = cdw0
-    nvme0.getfeatures(1, sel=0, cb=getfeatures_cb_1).waitdone()
-
-    nvme0.setfeatures(1, cdw11=orig_config|0x7).waitdone()
-
-    new_config = 0
-    def getfeatures_cb_2(cdw0, status):
-        nonlocal new_config; new_config = cdw0
-    nvme0.getfeatures(1, sel=0, cb=getfeatures_cb_2).waitdone()
-    logging.debug("%x" % new_config)
-    assert new_config == orig_config|0x7
-
-    nvme0.setfeatures(1, cdw11=orig_config).waitdone()
+    orig_config = nvme0.getfeatures(4, sel=0).waitdone()
+    nvme0.setfeatures(4, cdw11=orig_config+7).waitdone()
+    new_config = nvme0.getfeatures(4, sel=0).waitdone()
+    assert new_config == orig_config+7
+    nvme0.setfeatures(4, cdw11=orig_config).waitdone()
     
 
-def test_features_sel_01(nvme0, new_value=0x7):
+def test_features_sel_01(nvme0, add_value=10):
     if not nvme0.id_data(521, 520)&0x10:
         pytest.skip("feature sv is not supported")
 
-    orig_config = nvme0.getfeatures(1, sel=0).waitdone()
-    logging.debug("%x" % orig_config)
-
-    new_config = nvme0.getfeatures(1, sel=1).waitdone()
-    logging.debug("%x" % new_config)
+    orig_config = nvme0.getfeatures(4, sel=0).waitdone()
+    new_config = nvme0.getfeatures(4, sel=1).waitdone()
     assert orig_config == new_config
 
-    nvme0.setfeatures(1, cdw11=orig_config|new_value).waitdone()
-
-    new_config = nvme0.getfeatures(1, sel=0).waitdone()
-    logging.debug("%x" % new_config)
-    logging.debug("%x" % orig_config)
-    assert new_config == orig_config|new_value
-    new_config = nvme0.getfeatures(1, sel=1).waitdone()
-    logging.debug("%x" % orig_config)
+    nvme0.setfeatures(4, cdw11=orig_config+add_value).waitdone()
+    new_config = nvme0.getfeatures(4, sel=0).waitdone()
+    logging.info(orig_config)
+    logging.info(new_config)
+    assert new_config == orig_config+add_value
+    
+    new_config = nvme0.getfeatures(4, sel=1).waitdone()
     assert new_config == orig_config
 
-    nvme0.setfeatures(1, cdw11=orig_config).waitdone()
+    nvme0.setfeatures(4, cdw11=orig_config).waitdone()
 
 
-def test_features_sel_01_reserved_bits(nvme0):
-    # some reserved bits are not 0
-    # if reserved bits always "0", this test will fail
-    test_features_sel_01(nvme0, new_value=0xf)
+@pytest.mark.xfail(reason="cannot write reserved bit")
+def test_features_sel_01_reserved_bit(nvme0):
+    test_features_sel_01(nvme0, add_value=10+(1<<1))
+    # write a reserved bit
+    test_features_sel_01(nvme0, add_value=10+(1<<31))
 
     
 def test_features_sel_10(nvme0, fid=0x10):

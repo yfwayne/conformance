@@ -65,8 +65,8 @@ def test_controller_cc(nvme0):
 
 def test_controller_reserved(nvme0):
     assert nvme0[0x18] == 0
-    nvme0[0x18]=0x1111
-    assert nvme0[0x18]==0
+    nvme0[0x18]=1234
+    assert nvme0[0x18] == 0
 
 
 def test_controller_csts(nvme0):

@@ -29,7 +29,7 @@ def test_getlogpage_page_id(nvme0, buf):
     for lid in (1, 2, 3):
         nvme0.getlogpage(lid, buf).waitdone()
 
-    for lid in (0, 0x6f, 0x7f, 0xff):
+    for lid in (0, 0x6f, 0x7f):
         with pytest.warns(UserWarning, match="ERROR status: 01/09"):
             nvme0.getlogpage(lid, buf).waitdone()
         
