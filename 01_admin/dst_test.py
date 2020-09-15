@@ -109,20 +109,22 @@ def test_dst_in_progress(nvme0, nsid, stc):
 
 @pytest.mark.parametrize("nsid", [0, 1, 0xffffffff])
 @pytest.mark.parametrize("stc", [1, 2])
-def test_dst_abort(nvme0, nsid, stc):
+def test_dst_abort(nvme0, nsid, stc, buf):
     if not nvme0.supports(0x14):
-        pytest.skip("dst command is not supported")    
-    buf = Buffer(4096)
+        pytest.skip("dst command is not supported")
+        
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
 
+    # start dst
     nvme0.dst(stc, nsid).waitdone()
 
+    # abort it
     nvme0.dst(0xf, nsid).waitdone()
 
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
-    print(buf.dump(64))
+    logging.info(buf.dump(64))
     assert not buf[0]
     if stc == 1:
         assert buf[4] == 0x11  
@@ -186,25 +188,27 @@ def test_dst_short_abort_by_reset(nvme0):
     assert buf[4] == 0x12
 
 
-def test_dst_extended_abort_by_reset(nvme0):
+def test_dst_extended_abort_by_reset(nvme0, buf):
     if not nvme0.supports(0x14):
         pytest.skip("dst command is not supported")
-    buf = Buffer(4096)
+
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
 
     nvme0.dst(2, 0).waitdone()
 
+    time.sleep(2)
     nvme0.reset()
 
-    # check if dst aborted
+    # check if dst is not aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
-    assert not buf[0]
-    assert buf[4] == 0x22
-    
+    assert buf[0] == 2
+
+    # abort it
     nvme0.dst(0xf, 0).waitdone()
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
+    assert buf[4] == 0x21   
 
 
 def test_pcie_reset_setup(pcie, nvme0):
@@ -212,10 +216,10 @@ def test_pcie_reset_setup(pcie, nvme0):
     nvme0.reset()
 
 
-def test_dst_extended_abort_by_subsystem_reset(nvme0, subsystem):
+def test_dst_extended_abort_by_subsystem_reset(nvme0, subsystem, buf):
     if not nvme0.supports(0x14):
         pytest.skip("dst command is not supported")
-    buf = Buffer(4096)
+
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
 
@@ -227,13 +231,12 @@ def test_dst_extended_abort_by_subsystem_reset(nvme0, subsystem):
 
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
-    logging.info(buf.dump(64))
-    assert not buf[0]
-    assert buf[4] == 0x22
+    assert buf[0] == 2
 
     nvme0.dst(0xf, 0).waitdone()
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
+    assert buf[4] == 0x21
 
 
 @pytest.mark.parametrize("stc", [1, 2])

@@ -154,19 +154,3 @@ def test_write_invalid_nsid_lba(nvme0, nvme0n1, cq, sq):
     status = (cq[0][3]>>17)&0x7ff
     assert status == 0x000b  # invalid namespace or format
 
-    
-def test_write_invalid_prp_address_offset(nvme0, cq, sq):
-    # first cmd, invalid prp offset
-    cmd = SQE(1, 1)
-    buf = PRP(4096)
-    buf.offset = 1
-    cmd.prp1 = buf
-    cmd[10] = 1
-    cmd[11] = 0
-    cmd[12] = 1
-    sq[0] = cmd
-    sq.tail = 1
-    time.sleep(0.1)
-    status = (cq[0][3]>>17)&0x7ff
-    assert status == 0x0013  # invalid namespace or format
-

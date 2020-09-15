@@ -56,8 +56,7 @@ def test_getlogpage_after_error(nvme0, nvme0n1, buf, qpair):
         nvme0n1.read(qpair, buf, 0, 8).waitdone()
 
     time.sleep(0.1) # wait error information ready
-    with pytest.warns(UserWarning, match="AER notification is triggered"):
-        nvme0.getlogpage(1, buf).waitdone()
+    nvme0.getlogpage(1, buf).waitdone()
     nerror1 = buf.data(7, 0)
     nerror2 = buf.data(64+7, 64)
     assert nerror1 == nerror2+1
@@ -131,10 +130,7 @@ def test_getlogpage_power_cycle_count(nvme0, subsystem, buf):
         nvme0.getlogpage(2, buf, 512).waitdone()
         return buf.data(115, 112)
 
-    import time
-    start_time = time.time()
     powercycle = get_power_cycles(nvme0)
-
     subsystem.power_cycle(10)
     nvme0.reset()
     assert get_power_cycles(nvme0) == powercycle+1
@@ -191,6 +187,10 @@ def test_getlogpage_persistent_event_log(nvme0):
 
 
 def test_getlogpage_firmware_slot_info_nsid_1(nvme0, buf):
+    """For Log Pages with a scope of NVM subsystem or controller (as shown in Figure 191 and Figure 192), the
+controller should abort commands that specify namespace identifiers other than 0h or FFFFFFFFh with
+status Invalid Field in Command."""
+
     nvme0.getlogpage(3, buf, 512, nsid=0).waitdone()
     nvme0.getlogpage(3, buf, 512, nsid=0xffffffff).waitdone()
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):

@@ -157,8 +157,11 @@ def test_read_invalid_nsid_lba(nvme0, nvme0n1, cq, sq):
     
 def test_read_invalid_prp_address_offset(nvme0, cq, sq):
     # first cmd, invalid prp offset
-    cmd = SQE(2, 1)
-    buf = PRP(4096)
+    buf = PRP(4096, ptype=0xbeef, pvalue=100)
+    first_byte = buf[0]
+    logging.info(buf.dump(16))
+    
+    cmd = SQE(1, 1)
     buf.offset = 1
     cmd.prp1 = buf
     cmd[10] = 1
@@ -168,5 +171,22 @@ def test_read_invalid_prp_address_offset(nvme0, cq, sq):
     sq.tail = 1
     time.sleep(0.1)
     status = (cq[0][3]>>17)&0x7ff
-    assert status == 0x0013  # invalid namespace or format
+    
+    if status == 0:
+        # write success, check data
+        cmd = SQE(2, 1)
+        buf = PRP(4096)
+        cmd.prp1 = buf
+        cmd[10] = 1
+        cmd[11] = 0
+        cmd[12] = 1
+        sq[1] = cmd
+        sq.tail = 2
+        time.sleep(0.1)
+        status = (cq[1][3]>>17)&0x7ff
+        assert status == 0
+        logging.info(buf.dump(16))
+        assert first_byte == buf[0]
+    else:
+        assert status == 0x0013  # invalid namespace or format
 
