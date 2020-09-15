@@ -123,8 +123,8 @@ def test_pcie_aspm_l1_and_d3hot(pcie, nvme0n1):
     assert pcie.power_state == 0
     nvme0n1.ioworker(io_size=2, time=2).start().close()
 
-@pytest.mark.parametrize("aspm", [0,2])
-def test_pcie_ioworker_aspm(pcie, nvme0, buf, aspm):
+
+def test_pcie_ioworker_aspm(pcie, nvme0, buf):
     region_end = 256*1000*1000  # 1GB
     qdepth = min(1024, 1+(nvme0.cap&0xffff))
     
@@ -140,18 +140,21 @@ def test_pcie_ioworker_aspm(pcie, nvme0, buf, aspm):
     orig_unsafe_count = power_cycle_count()
     logging.info("power cycle count: %d" % orig_unsafe_count)
 
-    # 128K random write
+    # 128K random write, changing aspm
     cmdlog_list = [None]*1000
     with nvme0n1.ioworker(io_size=256,
                           lba_random=True,
                           read_percentage=30,
                           region_end=region_end,
-                          time=10,
+                          time=20,
                           qdepth=qdepth, 
                           output_cmdlog_list=cmdlog_list):
-        # change ASPM status before the ioworker end
-        time.sleep(5)
-        pcie.aspm = aspm
+        for i in range(10):
+            time.sleep(1)
+            pcie.aspm = 2
+            time.sleep(1)
+            pcie.aspm = 0
+        
     # verify data in cmdlog_list
     time.sleep(5)
     assert True == nvme0n1.verify_enable(True)

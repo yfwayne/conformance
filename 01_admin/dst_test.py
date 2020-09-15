@@ -29,14 +29,15 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 def test_powercycle_by_sleep(subsystem, nvme0):
     # sleep system for 10 seconds, to make DUT power off and on
     subsystem.power_cycle()
+    nvme0.reset()
 
 
 @pytest.mark.parametrize("nsid", [0, 1, 0xffffffff])
 @pytest.mark.parametrize("stc", [1])
-def test_dst(nvme0, nsid, stc):
+def test_dst(nvme0, buf, nsid, stc):
     if not nvme0.supports(0x14):
         pytest.skip("dst command is not supported")
-    buf = Buffer(4096)
+
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
 
@@ -51,8 +52,7 @@ def test_dst(nvme0, nsid, stc):
             logging.info("current dst progress percentage: %d%%" % buf[1])
 
 
-def test_dst_extended(nvme0, nsid=0, stc=2):
-    buf = Buffer(4096)
+def test_dst_extended(nvme0, buf, nsid=0, stc=2):
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
 
@@ -69,10 +69,10 @@ def test_dst_extended(nvme0, nsid=0, stc=2):
 
 @pytest.mark.parametrize("nsid", [2, 3, 8, 10, 0xff, 0xfffffffe])
 @pytest.mark.parametrize("stc", [1, 2])
-def test_dst_invalid_namespace(nvme0, nsid, stc):
+def test_dst_invalid_namespace(nvme0, buf, nsid, stc):
     if not nvme0.supports(0x14):
         pytest.skip("dst command is not supported")
-    buf = Buffer(4096)
+
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
 
@@ -82,10 +82,10 @@ def test_dst_invalid_namespace(nvme0, nsid, stc):
 
 @pytest.mark.parametrize("nsid", [0, 1, 0xffffffff])
 @pytest.mark.parametrize("stc", [1])
-def test_dst_in_progress(nvme0, nsid, stc):
+def test_dst_in_progress(nvme0, nsid, stc, buf):
     if not nvme0.supports(0x14):
         pytest.skip("dst command is not supported")
-    buf = Buffer(4096)
+
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
 
@@ -132,10 +132,10 @@ def test_dst_abort(nvme0, nsid, stc, buf):
         assert buf[4] == 0x21   
 
 
-def test_dst_invalid_stc(nvme0, nsid=1):
+def test_dst_invalid_stc(nvme0, buf, nsid=1):
     if not nvme0.supports(0x14):
         pytest.skip("dst command is not supported")
-    buf = Buffer(4096)
+
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
 
@@ -150,10 +150,10 @@ def test_dst_invalid_stc(nvme0, nsid=1):
 
 
 @pytest.mark.parametrize("stc", [1, 2])
-def test_dst_abort_by_format(nvme0, nvme0n1, stc, nsid=1):
+def test_dst_abort_by_format(nvme0, nvme0n1, stc, buf, nsid=1):
     if not nvme0.supports(0x14):
         pytest.skip("dst command is not supported")
-    buf = Buffer(4096)
+
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
 
@@ -163,7 +163,7 @@ def test_dst_abort_by_format(nvme0, nvme0n1, stc, nsid=1):
 
     # check if dst aborted
     nvme0.getlogpage(0x6, buf, 32).waitdone()
-    print(buf.dump(64))
+    logging.info(buf.dump(64))
     assert not buf[0]
     if stc == 1:
         assert buf[4] == 0x14
@@ -171,10 +171,10 @@ def test_dst_abort_by_format(nvme0, nvme0n1, stc, nsid=1):
         assert buf[4] == 0x24
 
 
-def test_dst_short_abort_by_reset(nvme0):
+def test_dst_short_abort_by_reset(nvme0, buf):
     if not nvme0.supports(0x14):
         pytest.skip("dst command is not supported")
-    buf = Buffer(4096)
+
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
 
