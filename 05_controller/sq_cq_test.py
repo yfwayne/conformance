@@ -26,7 +26,7 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 
-def test_sq_cq_wrap(nvme0):
+def test_sq_cq_around(nvme0):
     cq = IOCQ(nvme0, 1, 3, PRP())
     sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
 
@@ -53,7 +53,7 @@ def test_sq_cq_wrap(nvme0):
     cq.delete()
 
 
-def test_sq_wrap_overflow(nvme0):
+def test_sq_overflow(nvme0):
     cq = IOCQ(nvme0, 1, 5, PRP())
     sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
 
@@ -161,7 +161,7 @@ def test_sq_cq_another_sq(nvme0):
     cq.delete()
 
 
-def test_cqe_sqhd_aer(nvme0,buf):
+def _test_cq_sqhd_aer(nvme0,buf):
     #Create cq and sq
     a=()
     cq = IOCQ(nvme0, 1, 5, PRP())

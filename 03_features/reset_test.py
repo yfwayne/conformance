@@ -54,7 +54,7 @@ def test_power_and_reset(pcie, nvme0, subsystem):
     nvme0.getfeatures(7).waitdone()
 
 
-@pytest.mark.parametrize("delay", [1, 0.1, 0.01, 0.001, 0.0001, 0])
+@pytest.mark.parametrize("delay", [1]) #, 0.1, 0.01, 0.001, 0.0001, 0])
 def test_reset_with_outstanding_io(nvme0, nvme0n1, delay, io_count=1000):
     nvme0n1.format(512)
     logging.debug("format done")

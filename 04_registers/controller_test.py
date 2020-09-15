@@ -75,32 +75,26 @@ def test_controller_csts(nvme0):
 
 
 def test_controller_cap_to(nvme0):
-    logging.info("cc :{}".format(nvme0[0x14]))
-    logging.info("cap timeout :{}".format(nvme0.cap>>24&0xff))
-    timeout=nvme0.cap>>24&0xff
+    logging.info("cc: {}".format(nvme0[0x14]))
+    logging.info("cap timeout: {}".format(nvme0.cap>>24&0xff))
+    timeout = nvme0.cap>>24&0xff
+    max_time = timeout*500//1000
 
     #change cc.en from '1' to '0'
     nvme0[0x14] = 0
 
-    time_start=int(time.time())
-    max_time=timeout *500 //1000
-
+    time_start = time.time()
     #wait csts.rdy change from '1' to '0'
-    while not (nvme0[0x1c]&0x1)==0:
-        assert int(time.time())-time_start <= max_time
-
-
-    if 0 != nvme0.init_adminq():
-        raise NvmeEnumerateError("fail to init admin queue")
+    while (nvme0[0x1c]&0x1)==0: pass
+    assert time.time()-time_start < max_time
 
     #change cc.en from '0' to '1'
     nvme0[0x14] = 0x00460001
 
     #wait csts.rdy change from '0' to '1'
     time_start=int(time.time())
-    while not (nvme0[0x1c]&0x1)==1:
-        assert int(time.time())-time_start <= max_time
-
+    while (nvme0[0x1c]&0x1)==1: pass
+    assert time.time()-time_start < max_time
 
 
 def test_controller_cap_mqes(nvme0):

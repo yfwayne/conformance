@@ -55,26 +55,43 @@ def test_cq_sqhd(nvme0):
     cq = IOCQ(nvme0, 1, 3, PRP())
     sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
 
-    # send commands
+    # send commands, and check cqe
     sq[0] = SQE(4<<16+0, 1); sq.tail = 1; time.sleep(0.1)
-    sq[1] = SQE(3<<16+0, 1); sq.tail = 0; time.sleep(0.1)
-    sq[0] = SQE(2<<16+0, 1); sq.tail = 1; time.sleep(0.1)
-    sq[1] = SQE(1<<16+0, 1); sq.tail = 0; time.sleep(0.1)
-
-    # check cq
-    time.sleep(0.1)
     assert cq[0][2] == 0x10001
-    assert cq[1][2] == 0x10000
+    assert cq[0][3] == 0x10004
+    assert cq[1][2] == 0
     assert cq[2][2] == 0
-    cq.head = 1
-    time.sleep(0.1)
-    assert cq[2][2] == 0x10001
+    
+    # send commands, and check cqe
+    sq[1] = SQE(3<<16+0, 1); sq.tail = 0; time.sleep(0.1)
     assert cq[0][2] == 0x10001
-    cq.head = 2
-    time.sleep(0.1)
+    assert cq[0][3] == 0x10004
+    assert cq[1][2] == 0x10000
+    assert cq[1][3] == 0x10003
+    assert cq[2][2] == 0
+
+    # send commands, and check cqe
+    sq[0] = SQE(2<<16+0, 1); sq.tail = 1; time.sleep(0.1)
+    assert cq[0][2] == 0x10001
+    assert cq[0][3] == 0x10004
+    assert cq[1][2] == 0x10000
+    assert cq[1][3] == 0x10003
+    assert cq[2][2] == 0
+
+    # free one cqe before get 3rd cqe
+    cq.head = 1; time.sleep(0.1)
+    assert cq[2][2] == 0x10001
+    assert cq[2][3] == 0x10002
+    
+    # send commands, and check cqe
+    sq[1] = SQE(1<<16+0, 1); sq.tail = 0; time.sleep(0.1)
+    cq.head = 2; time.sleep(0.1)
     assert cq[0][2] == 0x10000
-    assert cq[0][0] == 0
-    assert cq[0][1] == 0
+    assert cq[0][3] == 0x00001
+    assert cq[1][2] == 0x10000
+    assert cq[1][3] == 0x10003
+    assert cq[2][2] == 0x10001
+    assert cq[2][3] == 0x10002
 
 
 def test_p_invert_after_cq_2_pass(nvme0):
@@ -179,6 +196,7 @@ def test_sq_cid1(nvme0):
     sq.delete()
     cq.delete()
 
+    
 def test_sq_cid2(nvme0):
     cq = IOCQ(nvme0, 1, 3, PRP())
     sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
@@ -194,6 +212,7 @@ def test_sq_cid2(nvme0):
     sq.delete()
     cq.delete()
 
+    
 def test_cid_conflict(nvme0):
     mdts_lba = nvme0.mdts//512
     cq = IOCQ(nvme0, 1, 20, PRP())
@@ -250,7 +269,8 @@ def test_cid_conflict(nvme0):
     sq.delete()
     cq.delete()   
 
-def test_sq_rsv(nvme0):
+    
+def test_sq_reserved(nvme0):
     cq = IOCQ(nvme0, 1, 3, PRP())
     sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
 
@@ -263,6 +283,7 @@ def test_sq_rsv(nvme0):
     sq.delete()
     cq.delete()
 
+    
 def test_sq_fuse_is_zero(nvme0):
     cq = IOCQ(nvme0, 1, 3, PRP())
     sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
@@ -276,7 +297,8 @@ def test_sq_fuse_is_zero(nvme0):
     sq.delete()
     cq.delete()
 
-def test_sq_fuse_is_rsv(nvme0):
+    
+def test_sq_fuse_is_reserved(nvme0):
     cq = IOCQ(nvme0, 1, 3, PRP())
     sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
 
@@ -289,6 +311,7 @@ def test_sq_fuse_is_rsv(nvme0):
     assert cq[0][3]>>17 == 0x0002
     sq.delete()
     cq.delete()
+
     
 @pytest.mark.parametrize("opc_id", [0x3, 0x7, 0x0b, 0x0f, 0x12, 0x13, 0x16, 0x17, 0x1b])
 def test_sq_opc_invalid_admin_cmd(nvme0,opc_id):
@@ -296,6 +319,7 @@ def test_sq_opc_invalid_admin_cmd(nvme0,opc_id):
     with pytest.warns(UserWarning, match="ERROR status: 00/01"):
         nvme0.send_cmd(opc_id).waitdone()
 
+        
 @pytest.mark.parametrize("opc_id", [0x03, 0x07, 0x0a, 0x0b, 0x0f, 0x10, 0x12, 0x13, 0x14])
 def test_sq_opc_invalid_nvm_cmd(nvme0,opc_id):
     cq = IOCQ(nvme0, 1, 3, PRP())
