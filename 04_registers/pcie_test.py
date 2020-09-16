@@ -159,6 +159,7 @@ def test_pcie_link_control_aspm(nvme0, pcie, aspm): #1:0
     cq.delete()
 
     time.sleep(1)
+    
     #return ASPM L0
     pcie[linkctrl_addr] = (linkctrl&0xfc)|0
     
@@ -168,4 +169,45 @@ def test_pcie_cold_reset(subsystem, nvme0, buf):
     subsystem.power_cycle()
     nvme0.reset()
     nvme0.identify(buf).waitdone()
+
+
+def test_pcie_format(nvme0n1):
+    nvme0n1.format()
+
+    
+def test_pcie_read_bandwidth(nvme0n1):
+    io_size = 128
+    r = nvme0n1.ioworker(io_size=io_size,
+                         lba_random=False,
+                         read_percentage=100,
+                         time=10).start().close()
+    logging.debug(r)
+    logging.info("%dMB/s" % ((io_size*512*r.io_count_read/1000)/10000))
+    
+
+@pytest.mark.parametrize("aspm", [0, 2])
+@pytest.mark.parametrize("gen", [1, 2, 3, 2, 1, 1, 2, 3])
+def test_pcie_link_speed(pcie, nvme0, nvme0n1, gen, aspm):
+    linkctr2_addr = pcie.cap_offset(0x10)+0x30
+    linkctr2 = pcie.register(linkctr2_addr, 4)
+    logging.info(linkctr2)
+
+    pcie[linkctr2_addr] = (linkctr2 & 0xf0) | gen
+    logging.info(pcie.register(linkctr2_addr, 4))
+    pcie.reset()
+    nvme0.reset()
+    test_pcie_read_bandwidth(nvme0n1)
+    test_pcie_link_control_aspm(nvme0, pcie, aspm)
+    
+
+@pytest.mark.parametrize("gen", [5, 4, 0, 3])
+def _test_pcie_link_speed_invalid(pcie, nvme0, nvme0n1, gen):
+    linkctr2_addr = pcie.cap_offset(0x10)+0x30
+    linkctr2 = pcie.register(linkctr2_addr, 4)
+    logging.info(linkctr2)
+
+    pcie[linkctr2_addr] = (linkctr2 & 0xf0) | gen
+    logging.info(pcie.register(linkctr2_addr, 4))
+    pcie.reset()
+    nvme0.reset()
     
