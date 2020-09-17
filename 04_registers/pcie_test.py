@@ -124,12 +124,14 @@ def test_pcie_link_capabilities_and_status(pcie):
 def test_pcie_link_control_aspm(nvme0, pcie, aspm): #1:0
     linkctrl_addr = pcie.cap_offset(0x10)+16
     linkctrl = pcie.register(linkctrl_addr, 2)
-    logging.info("link control register [0x%x]= 0x%x" % (linkctrl_addr, linkctrl))
+    logging.info("link control register [0x%x]= 0x%x" %
+                 (linkctrl_addr, linkctrl))
 
     # set ASPM control
     pcie[linkctrl_addr] = (linkctrl&0xfc)|aspm
     linkctrl = pcie.register(linkctrl_addr, 2)
-    logging.info("link control register [0x%x]= 0x%x" % (linkctrl_addr, linkctrl))
+    logging.info("link control register [0x%x]= 0x%x" %
+                 (linkctrl_addr, linkctrl))
 
     # IO queue for read commands
     cq = IOCQ(nvme0, 1, 16, PRP())
@@ -139,7 +141,7 @@ def test_pcie_link_control_aspm(nvme0, pcie, aspm): #1:0
     read_cmd = SQE(2, 1)
     read_cmd.prp1 = PRPList()
     pbit = 1
-    for i in range(1000):
+    for i in range(100):
         logging.debug(i)
         slot = i%16
         if slot == 0:
@@ -180,9 +182,9 @@ def test_pcie_read_bandwidth(nvme0n1):
     r = nvme0n1.ioworker(io_size=io_size,
                          lba_random=False,
                          read_percentage=100,
-                         time=10).start().close()
+                         time=1).start().close()
     logging.debug(r)
-    logging.info("%dMB/s" % ((io_size*512*r.io_count_read/1000)/10000))
+    logging.info("%dMB/s" % ((io_size*512*r.io_count_read/1000)/1000))
     
 
 @pytest.mark.parametrize("aspm", [0, 2])

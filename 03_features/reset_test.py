@@ -102,9 +102,9 @@ def test_reset_with_outstanding_io(nvme0, nvme0n1, delay, io_count=1000):
     for i in range(io_count):
         cid = cq[i].cid
         dp = buf_list[cq[i].cid].data(3, 0)  # check data pattern
-        logging.info("cpl %d: cid %d, data pattern %d" % (i, cid, dp))
-        assert dp == 0 or dp == cid 
+        logging.debug("cpl %d: cid %d, data pattern %d" % (i, cid, dp))
+        assert dp == 0 or dp == cid
+        
     sq.delete()
     cq.delete()
-    logging.debug("verify done")
     
