@@ -27,8 +27,6 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 
-
-
 def test_create_cq_with_invalid_prp_offset(nvme0):
     prp = PRP(4096)
     #Spec NVM-Express-1_4-2019.06.10-Ratified

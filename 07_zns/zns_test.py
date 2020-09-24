@@ -37,8 +37,8 @@ import time
 import pytest
 import logging
 
-from nvme import *
-from scripts.zns import *
+from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
+from scripts.zns import Zone
 
 
 def test_zns_identify_namespace(nvme0, buf):
@@ -79,3 +79,69 @@ def test_zns_management_send(nvme0n1, qpair):
     for a in [4, 3]:
         z0.action = a
         logging.info(z0.state)
+
+
+@pytest.mark.parametrize("slba", [0, 0x8000, 0x10000, 0x80000, 0x100000])
+def test_zns_state_machine(nvme0n1, qpair, slba):
+    z0 = Zone(qpair, nvme0n1, slba)
+    assert z0.state == 'Full'
+    
+    z0.reset()
+    assert z0.state == 'Empty'
+    
+    z0.open()
+    assert z0.state == 'Explicitly Opened'
+    
+    z0.close()
+    assert z0.state == 'Closed'
+
+    z0.open()
+    assert z0.state == 'Explicitly Opened'
+    
+    z0.close()
+    assert z0.state == 'Closed'
+
+    z0.finish()
+    assert z0.state == 'Full'
+    
+    z0.reset()
+    assert z0.state == 'Empty'
+
+    z0.open()
+    assert z0.state == 'Explicitly Opened'
+    
+    z0.reset()
+    assert z0.state == 'Empty'
+
+    z0.open()
+    assert z0.state == 'Explicitly Opened'
+    
+    z0.close()
+    assert z0.state == 'Closed'
+
+    z0.reset()
+    assert z0.state == 'Empty'
+    
+    z0.finish()
+    assert z0.state == 'Full'
+    
+
+def test_zns_show_zone(nvme0n1, qpair, slba=0):
+    z0 = Zone(qpair, nvme0n1, slba)
+    logging.info(z0)
+
+    
+def test_zns_write(nvme0n1, qpair, slba=0):
+    buf = Buffer(256*1024)
+    z0 = Zone(qpair, nvme0n1, slba)
+    logging.info(z0)
+
+    with pytest.warns(UserWarning, match="ERROR status: 01/b9"):
+        z0.write(qpair, buf, 0, 256//4).waitdone()
+
+    z0.reset()
+    z0.open()
+    for i in range(16):
+        z0.write(qpair, buf, 0, 256//4)
+    qpair.waitdone(16)
+    logging.info(z0)
