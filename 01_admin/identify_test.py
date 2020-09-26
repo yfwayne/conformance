@@ -18,6 +18,7 @@
 # -*- coding: utf-8 -*-
 
 
+import time
 import pytest
 import logging
 
@@ -87,7 +88,7 @@ def test_identify_namespace_id_list(nvme0, buf):
         assert buf[i] == buf[i+8]
 
 
-def test_identify_name_utilitzation(nvme0, nvme0n1, buf):
+def test_identify_namespace_utilization(nvme0, nvme0n1, buf):
     q = Qpair(nvme0, 10)
     orig_nuse = nvme0n1.id_data(23, 16)
     logging.info(orig_nuse)
@@ -101,6 +102,7 @@ def test_identify_name_utilitzation(nvme0, nvme0n1, buf):
 
     # write lba 0
     nvme0n1.write(q, buf, 0, 8).waitdone()
+    time.sleep(0.1)  # some drive may update it at background
     nuse = nvme0n1.id_data(23, 16)
     logging.info(nuse)
     assert nuse == orig_nuse

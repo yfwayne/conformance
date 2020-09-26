@@ -28,23 +28,28 @@ from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 def test_sq_cq_around(nvme0):
     cq = IOCQ(nvme0, 1, 3, PRP())
-    sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
+    sq = IOSQ(nvme0, 1, 5, PRP(), cqid=1)
 
     # send commands
-    sq[0] = SQE(4<<16+0, 1); sq.tail = 1
-    sq[1] = SQE(3<<16+0, 1); sq.tail = 0
-    sq[0] = SQE(2<<16+0, 1); sq.tail = 1
-    sq[1] = SQE(1<<16+0, 1); sq.tail = 0
+    sq[0] = SQE(4<<16+0, 1)
+    sq[1] = SQE(3<<16+0, 1)
+    sq[2] = SQE(2<<16+0, 1)
+    sq[3] = SQE(1<<16+0, 1)
+    sq.tail = 4
 
     # check cq
     time.sleep(0.1)
     assert cq[0][3] == 0x10004
     assert cq[1][3] == 0x10003
     assert cq[2][3] == 0
+    
     cq.head = 1
+    time.sleep(0.1)
     assert cq[0][3] == 0x10004
     assert cq[2][3] == 0x10002
+    
     cq.head = 2
+    time.sleep(0.1)
     assert cq[2][3] == 0x10002
     assert cq[1][3] == 0x10003
     assert cq[0][3] == 0x00001
@@ -137,23 +142,29 @@ def test_sq_cq_another_sq(nvme0):
     cq = IOCQ(nvme0, 1, 3, PRP())
 
     # send commands in sq1
-    sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
-    sq[0] = SQE(4<<16+0, 1); sq.tail = 1
-    sq[1] = SQE(3<<16+0, 1); sq.tail = 0
+    sq = IOSQ(nvme0, 1, 3, PRP(), cqid=1)
+    sq[0] = SQE(4<<16+0, 1)
+    sq[1] = SQE(3<<16+0, 1)
+    sq.tail = 2
 
-    sq2 = IOSQ(nvme0, 2, 2, PRP(), cqid=1)
-    sq2[0] = SQE(2<<16+0, 1); sq2.tail = 1
-    sq2[1] = SQE(1<<16+0, 1); sq2.tail = 0
+    sq2 = IOSQ(nvme0, 2, 3, PRP(), cqid=1)
+    sq2[0] = SQE(2<<16+0, 1)
+    sq2[1] = SQE(1<<16+0, 1)
+    sq2.tail = 2
 
     # check cq
     time.sleep(0.1)
     assert cq[0][3] == 0x10004
     assert cq[1][3] == 0x10003
     assert cq[2][3] == 0
+    
     cq.head = 1
+    time.sleep(0.1)
     assert cq[2][3] == 0x10002
     assert cq[0][3] == 0x10004
+    
     cq.head = 2
+    time.sleep(0.1)
     assert cq[0][3] == 0x00001
 
     sq.delete()

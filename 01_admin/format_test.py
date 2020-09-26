@@ -118,7 +118,7 @@ def test_format_invalid_ses(nvme0, nvme0n1, verify, qpair):
     nvme0n1.write(qpair, write_buf, 0, 1).waitdone()
     nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] == b'hello world'
-    with pytest.warns(UserWarning, match="ERROR status: 00/02"):
+    with pytest.warns(UserWarning, match="ERROR status: (00/02|01/0a)"):
         nvme0.format(0, 7, 0xffffffff).waitdone()
     nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] == b'hello world'
@@ -148,7 +148,7 @@ def test_format_invalid_lbaf(nvme0, nvme0n1, verify, qpair):
     nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] == b'hello world'        
     
-    with pytest.warns(UserWarning, match="ERROR status: 00/02"):
+    with pytest.warns(UserWarning, match="ERROR status: (00/02|01/0a)"):
         nvme0.format(0, 7).waitdone()
     nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] == b'hello world'        

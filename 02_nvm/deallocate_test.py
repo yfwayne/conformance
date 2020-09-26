@@ -103,12 +103,12 @@ def test_deallocate_correct_range(nvme0, nvme0n1,  qpair):
     nvme0n1.dsm(qpair, buf, 1).waitdone()
 
     nvme0n1.read(qpair, buf, 1, 1).waitdone()
-    logging.debug(buf[0:4])
+    logging.info(buf[0:4])
     assert buf[0] == 1
     nvme0n1.read(qpair, buf, 2, 1).waitdone()
-    logging.debug(buf[0:4])
+    logging.info(buf[0:4])
     nvme0n1.read(qpair, buf, 3, 1).waitdone()
-    logging.debug(buf[0:4])
+    logging.info(buf[0:4])
     assert buf[0] == 3
 
     

@@ -76,6 +76,9 @@ def test_read_fua(nvme0, nvme0n1, buf, qpair):
 
 
 def test_read_bad_number_blocks(nvme0, nvme0n1, qpair):
+    if nvme0.mdts == 1024*1024: # up to 1MB
+        pytest.skip("mdts is maximum")
+        
     mdts = nvme0.mdts//512
     buf = Buffer(mdts*512+4096)
 
@@ -123,6 +126,9 @@ def test_read_invalid_nsid(nvme0, nvme0n1, cq, sq):
 
     
 def test_read_invalid_nlb(nvme0, nvme0n1, cq, sq):
+    if nvme0.mdts == 1024*1024: # up to 1MB
+        pytest.skip("mdts is maximum")
+    
     ncap = nvme0n1.id_data(15, 8)
     mdts = nvme0.mdts
     

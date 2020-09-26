@@ -28,23 +28,26 @@ from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 def test_cq_p_phase_bit(nvme0):
     cq = IOCQ(nvme0, 1, 3, PRP())
-    sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
+    sq = IOSQ(nvme0, 1, 5, PRP(), cqid=1)
 
     # send commands
-    sq[0] = SQE(4<<16+0, 1); sq.tail = 1
-    sq[1] = SQE(3<<16+0, 1); sq.tail = 0
-    sq[0] = SQE(2<<16+0, 1); sq.tail = 1
-    sq[1] = SQE(1<<16+0, 1); sq.tail = 0
+    sq[0] = SQE(4<<16+0, 1)
+    sq[1] = SQE(3<<16+0, 1)
+    sq[2] = SQE(2<<16+0, 1)
+    sq[3] = SQE(1<<16+0, 1)
+    sq.tail = 4
 
     # check cq
     time.sleep(0.1)
     assert cq[0][3] == 0x10004
     assert cq[1][3] == 0x10003
     assert cq[2][3] == 0
+    
     cq.head = 1
     time.sleep(0.1)
     assert cq[2][3] == 0x10002
     assert cq[0][3] == 0x10004
+    
     cq.head = 2
     time.sleep(0.1)
     # p-bit changed to 0
@@ -260,10 +263,12 @@ def test_cid_conflict(nvme0):
     logging.info(cq[1])
     cqe = CQE(cq[0])
     assert cqe.p == 1
-    assert (cq[0][3]>>17)&0x3ff == 0
+    status = (cqe[3]>>17)&0x3ff
+    assert status == 0 or status == 0x0003
     cqe = CQE(cq[1])
     assert cqe.p == 1
-    assert (cq[0][3]>>17)&0x3ff == 0
+    status = (cqe[3]>>17)&0x3ff
+    assert status == 0 or status == 0x0003
     cq.head = 2
 
     sq.delete()

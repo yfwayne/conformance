@@ -98,12 +98,12 @@ def test_controller_cap_to(nvme0):
 
 
 def test_controller_cap_mqes(nvme0):
-    mqes=nvme0.cap&0xffff
-    logging.info("mqes:{}".format(mqes))
-    assert mqes >=1
+    mqes = 1+(nvme0.cap&0xffff)
+    logging.info(mqes)
+    assert mqes >= 2
     
-    if mqes == 64*1024-1:
-        pytest.skip("")
+    if mqes == 64*1024:
+        pytest.skip("mqes is maximum")
 
     with pytest.warns(UserWarning, match="ERROR status: 01/02"):
         cq = IOCQ(nvme0, 1, mqes+1, PRP())

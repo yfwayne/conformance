@@ -28,12 +28,13 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 @pytest.mark.parametrize("offset", [4096, 10, 4096*2])
 def test_firmware_download(nvme0, size, offset):
     fwug = nvme0.id_data(319)
+    logging.info(fwug)
     if fwug == 0 or fwug == 0xff:
         pytest.skip("not applicable")
     
-    buf = Buffer(size)
-    with pytest.warns(UserWarning, match="ERROR status: 01/14"):
-        nvme0.fw_download(buf, offset).waitdone()
+    buf = Buffer(size*fwug)
+    with pytest.warns(UserWarning, match="ERROR status: (01/14|00/02)"):
+        nvme0.fw_download(buf, offset*fwug).waitdone()
 
 
 def test_firmware_commit(nvme0):
@@ -46,19 +47,19 @@ def test_firmware_commit(nvme0):
     buf = Buffer(4096*16)
     nvme0.fw_download(buf, 0).waitdone()
 
-    logging.info("commit with an invalid firmware image")
-    for slot in range(1, slot_count+1):
-        with pytest.warns(UserWarning, match="ERROR status: 01/07"):
-            nvme0.fw_commit(slot, 0).waitdone()
-        
     logging.info("commit to invalid firmware slot")
     with pytest.warns(UserWarning, match="ERROR status: 01/07"):
         nvme0.fw_commit(0, 0).waitdone()
 
-    if slot_count == 7:
-        pytest.skip("no invalid slot")
+    if slot_count != 7:
+        for slot in range(slot_count+1, 8):
+            with pytest.warns(UserWarning, match="ERROR status: 01/06"):
+                nvme0.fw_commit(slot, 2).waitdone()
 
-    for slot in range(slot_count+1, 8):
-        with pytest.warns(UserWarning, match="ERROR status: 01/06"):
-            nvme0.fw_commit(slot, 2).waitdone()
-
+    logging.info("commit with an invalid firmware image")
+    for slot in range(2, slot_count+1):
+        with pytest.warns(UserWarning, match="ERROR status: 01/07"):
+            nvme0.fw_commit(slot, 0).waitdone()
+        
+    with pytest.warns(UserWarning, match="ERROR status: 01/07"):
+        nvme0.fw_commit(1, 0).waitdone()

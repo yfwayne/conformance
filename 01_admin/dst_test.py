@@ -114,7 +114,6 @@ def test_dst_abort(nvme0, nsid, stc, buf):
         pytest.skip("dst command is not supported")
         
     nvme0.getlogpage(0x6, buf, 32).waitdone()
-    assert not buf[0]
 
     # start dst
     nvme0.dst(stc, nsid).waitdone()

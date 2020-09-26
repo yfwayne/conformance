@@ -89,7 +89,7 @@ def test_ioworker_with_wrr(nvme0, nvme0n1):
                              read_percentage=100,
                              region_end=0x10000,
                              qprio=i+1,
-                             time=10)
+                             time=30)
         l.append(a)
 
     w = []
@@ -104,9 +104,9 @@ def test_ioworker_with_wrr(nvme0, nvme0n1):
         io_count.append(r.io_count_read)
 
     logging.info(io_count)
-    assert io_count[1]/io_count[2] > 1.8
+    assert io_count[1]/io_count[2] > 1.7
     assert io_count[1]/io_count[2] < 2.2
-    assert io_count[0]/io_count[1] > 1.8
+    assert io_count[0]/io_count[1] > 1.7
     assert io_count[0]/io_count[1] < 2.2
 
 
