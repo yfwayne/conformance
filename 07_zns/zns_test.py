@@ -65,12 +65,10 @@ def test_zns_management_receive(nvme0n1, qpair, buf):
         assert zone_type == 2
 
         zone = Zone(qpair, nvme0n1, i*zone_size)
-        assert buf.data(base+1)>>4 == zone.state
+        assert buf.data(base+1)>>4 == 14
         assert buf.data(base+15, base+8) == zone.capacity
 
-        logging.info("zone %d, state 0x%x, attr 0x%x, zslba 0x%x, zcap 0x%x, wp 0x%x" %
-                     (i, zone.state, zone.attributes, zone.slba,
-                      zone.capacity, zone.wpointer))
+        logging.info(zone)
     
 
 def test_zns_management_send(nvme0n1, qpair):
@@ -131,17 +129,43 @@ def test_zns_show_zone(nvme0n1, qpair, slba=0):
     logging.info(z0)
 
     
-def test_zns_write(nvme0n1, qpair, slba=0):
-    buf = Buffer(256*1024)
+def test_zns_write_full_zone(nvme0n1, qpair, slba=0):
+    buf = Buffer(96*1024)
     z0 = Zone(qpair, nvme0n1, slba)
-    logging.info(z0)
+    assert z0.state == 'Full'
 
-    with pytest.warns(UserWarning, match="ERROR status: 01/b9"):
-        z0.write(qpair, buf, 0, 256//4).waitdone()
+    with pytest.warns(UserWarning, match="ERROR status: 01/"):
+        z0.write(qpair, buf, 0, 96//4).waitdone()
 
     z0.reset()
-    z0.open()
-    for i in range(16):
-        z0.write(qpair, buf, 0, 256//4)
-    qpair.waitdone(16)
+    z0.finish()
+    assert z0.state == 'Full'
+
+
+@pytest.mark.parametrize("repeat", range(100))
+@pytest.mark.parametrize("slba", [0, 0x8000, 0x100000])
+def test_zns_write_implicitly_open(nvme0n1, qpair, slba, repeat):
+    buf = Buffer(96*1024)
+    z0 = Zone(qpair, nvme0n1, slba)
+    assert z0.state == 'Full'
+    
+    z0.reset()
+    assert z0.state == 'Empty'
+    assert z0.wpointer == slba
+
+    z0.write(qpair, buf, 0, 96//4)
+    time.sleep(1)
+    assert z0.state == 'Implicitly Opened'
+    assert z0.wpointer == slba+0x18
+
+    z0.close()
+    #logging.info(z0)
+    assert z0.state == 'Closed'
+    assert z0.wpointer == slba+0x18
+    
+    z0.finish()
+    qpair.waitdone()
     logging.info(z0)
+    assert z0.state == 'Full'
+    assert z0.wpointer == slba+0x4800
+
