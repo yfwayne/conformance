@@ -273,9 +273,9 @@ def test_dst_abort_by_sanitize(nvme0, nvme0n1, stc, nsid=1):
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
     if stc == 1:
-        assert buf[4]&0xf0 == 10
+        assert buf[4]&0xf0 == 0x10
     if stc == 2:   
-        assert buf[4]&0xf0 == 20
+        assert buf[4]&0xf0 == 0x20
     vs = nvme0[8]
     logging.info("%d" %vs)
     if vs >= 0x010400:

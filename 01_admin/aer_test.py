@@ -128,7 +128,8 @@ def test_aer_mask_event(nvme0):
     
     nvme0.getlogpage(0x02, smart_log, 512).waitdone()
     ktemp = smart_log.data(2, 1)
-    logging.info("temperature: %d degreeF" % ktemp)
+    from pytemperature import k2c
+    logging.info("temperature: %0.2f degreeC" % k2c(ktemp))
 
     # over composite temperature threshold
     orig_config_4 = nvme0.getfeatures(4).waitdone()
