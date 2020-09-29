@@ -35,27 +35,38 @@
 
 import time
 import pytest
+import random
 import logging
 
 from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 from scripts.zns import Zone
 
 
+@pytest.fixture()
+def zone(nvme0n1, qpair):
+    slba = 0x8000*int(random.random()*100)
+    ret = Zone(qpair, nvme0n1, slba)
+    if ret.state == 'Full':
+        ret.reset()
+    if ret.state == 'Empty':
+        ret.open()
+    assert ret.state == 'Explicitly Opened'
+    assert ret.wpointer == ret.slba
+    return ret
+
+    
 def test_zns_identify_namespace(nvme0, buf):
     nvme0.identify(buf, nsid=0, cns=1).waitdone()
     logging.info(buf.dump(64))
     nvme0.identify(buf, nsid=1, cns=0).waitdone()
     logging.info(buf.dump(64))
-    nvme0.identify(buf, nsid=1, cns=5).waitdone()
+    #nvme0.identify(buf, nsid=1, cns=5).waitdone()
     logging.info(buf.dump(64))
-    nvme0.identify(buf, nsid=1, cns=6).waitdone()
+    #nvme0.identify(buf, nsid=1, cns=6).waitdone()
     logging.info(buf.dump(64))
     
 
 def test_zns_management_receive(nvme0n1, qpair, buf):
-    if not nvme0n1.supports(0x7a):
-        pytest.skip("zns is not supported")
-        
     zone_size = 0x8000
     nvme0n1.zns_mgmt_receive(qpair, buf).waitdone()
     nzones = buf.data(7, 0)
@@ -75,9 +86,6 @@ def test_zns_management_receive(nvme0n1, qpair, buf):
     
 
 def test_zns_management_send(nvme0n1, qpair):
-    if not nvme0n1.supports(0x7a):
-        pytest.skip("zns is not supported")
-        
     z0 = Zone(qpair, nvme0n1, 0)
     logging.info(z0.state)
     for a in [4, 3]:
@@ -87,9 +95,6 @@ def test_zns_management_send(nvme0n1, qpair):
 
 @pytest.mark.parametrize("slba", [0, 0x8000, 0x10000, 0x80000, 0x100000])
 def test_zns_state_machine(nvme0n1, qpair, slba):
-    if not nvme0n1.supports(0x7a):
-        pytest.skip("zns is not supported")
-        
     z0 = Zone(qpair, nvme0n1, slba)
     assert z0.state == 'Full'
     
@@ -134,17 +139,11 @@ def test_zns_state_machine(nvme0n1, qpair, slba):
     
 
 def test_zns_show_zone(nvme0n1, qpair, slba=0):
-    if not nvme0n1.supports(0x7a):
-        pytest.skip("zns is not supported")
-        
     z0 = Zone(qpair, nvme0n1, slba)
     logging.info(z0)
 
     
 def test_zns_write_full_zone(nvme0n1, qpair, slba=0):
-    if not nvme0n1.supports(0x7a):
-        pytest.skip("zns is not supported")
-        
     buf = Buffer(96*1024)
     z0 = Zone(qpair, nvme0n1, slba)
     assert z0.state == 'Full'
@@ -157,12 +156,38 @@ def test_zns_write_full_zone(nvme0n1, qpair, slba=0):
     assert z0.state == 'Full'
 
 
-@pytest.mark.parametrize("repeat", range(100))
+def test_zns_write_1(nvme0n1, qpair, zone):
+    buf = Buffer(96*1024)
+    zone.write(qpair, buf, 0, 24)
+    zone.close()
+    zone.finish()
+    qpair.waitdone(1)
+    assert zone.state == 'Full'
+
+    
+def test_zns_write_2(nvme0n1, qpair, zone):
+    buf = Buffer(96*1024)
+    zone.write(qpair, buf, 0, 12)
+    zone.write(qpair, buf, 12, 12)
+    zone.close()
+    zone.finish()
+    qpair.waitdone(2)
+    assert zone.state == 'Full'
+
+    
+def test_zns_write_192k(nvme0n1, qpair, zone):
+    buf = Buffer(96*1024)
+    zone.write(qpair, buf, 0, 24)
+    zone.write(qpair, buf, 24, 24).waitdone()
+    zone.close()
+    zone.finish()
+    qpair.waitdone(1)
+    assert zone.state == 'Full'
+    
+    
+@pytest.mark.parametrize("repeat", range(100)) #100
 @pytest.mark.parametrize("slba", [0, 0x8000, 0x100000])
 def test_zns_write_implicitly_open(nvme0n1, qpair, slba, repeat):
-    if not nvme0n1.supports(0x7a):
-        pytest.skip("zns is not supported")
-        
     buf = Buffer(96*1024)
     z0 = Zone(qpair, nvme0n1, slba)
     assert z0.state == 'Full'
@@ -186,4 +211,5 @@ def test_zns_write_implicitly_open(nvme0n1, qpair, slba, repeat):
     logging.info(z0)
     assert z0.state == 'Full'
     assert z0.wpointer == slba+0x4800
+
 
