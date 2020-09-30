@@ -79,9 +79,32 @@ def test_zns_identify_namespace(nvme0, buf):
     nvme0.identify(buf, nsid=1, cns=6).waitdone()
     logging.info(buf.dump(64))
     
+# LBA Format Extension Data Structure
+# Zone Descriptor Extension Size bit 71:64 (ZDES)
+# Zone Size 63:0 (ZSZE)
+def get_zone_desctr_size(nvme0,buf):
+    nvme0.identify(buf, nsid=0, cns=5, csi=2).waitdone()
+    zone_desctr_size = buf.data(3833,3832)
+    return zone_desctr_size
+
+def get_zone_size(nvme0,buf):
+    nvme0.identify(buf, nsid=0, cns=5, csi=2).waitdone()
+    zone_size = buf.data(3831,3824)
+    return zone_size
+
+def get_cap_css(nvme0):
+    css = ((nvme0.cap >> 32) & 0x1FE0) >> 5
+    logging.info("CAP.CSS= 0x%x" % css)
+    return css
 
 def test_zns_management_receive(nvme0n1, qpair, buf):
-    zone_size = 0x8000
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+    
+    zone_size = get_zone_size(nvme0,buf)
+    if zone_size == 0:
+        zone_size = 0x1000
     nvme0n1.zns_mgmt_receive(qpair, buf).waitdone()
     nzones = buf.data(7, 0)
     logging.info("number of zones: %d" % nzones)
@@ -99,6 +122,10 @@ def test_zns_management_receive(nvme0n1, qpair, buf):
     
 
 def test_zns_management_send(nvme0n1, qpair):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+
     z0 = Zone(qpair, nvme0n1, 0)
     z0.action(2)
     assert z0.state == 'Full'
@@ -106,6 +133,10 @@ def test_zns_management_send(nvme0n1, qpair):
 
 @pytest.mark.parametrize("slba", [0, 0x8000, 0x10000, 0x80000, 0x100000])
 def test_zns_state_machine(nvme0n1, qpair, slba):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+
     z0 = Zone(qpair, nvme0n1, slba)
     assert z0.state == 'Full'
     
@@ -150,11 +181,19 @@ def test_zns_state_machine(nvme0n1, qpair, slba):
     
 
 def test_zns_show_zone(nvme0n1, qpair, slba=0):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+
     z0 = Zone(qpair, nvme0n1, slba)
     logging.info(z0)
 
     
 def test_zns_write_full_zone(nvme0n1, qpair, slba=0):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+
     buf = Buffer(96*1024)
     z0 = Zone(qpair, nvme0n1, slba)
     assert z0.state == 'Full'
@@ -168,6 +207,10 @@ def test_zns_write_full_zone(nvme0n1, qpair, slba=0):
 
 
 def test_zns_write_1(nvme0n1, qpair, zone):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+
     buf = Buffer(96*1024)
     zone.write(qpair, buf, 0, 24)
     zone.close()
@@ -177,6 +220,10 @@ def test_zns_write_1(nvme0n1, qpair, zone):
 
     
 def test_zns_write_2(nvme0n1, qpair, zone):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+
     buf = Buffer(96*1024)
     zone.write(qpair, buf, 0, 12)
     zone.write(qpair, buf, 12, 12)
@@ -187,6 +234,10 @@ def test_zns_write_2(nvme0n1, qpair, zone):
 
     
 def test_zns_write_192k(nvme0n1, qpair, zone):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+
     buf = Buffer(96*1024)
     zone.write(qpair, buf, 0, 24)
     zone.write(qpair, buf, 24, 24).waitdone()
@@ -219,6 +270,10 @@ def _test_zns_write_48k_and_96k(nvme0n1, qpair, zone):
 @pytest.mark.parametrize("repeat", range(100)) #100
 @pytest.mark.parametrize("slba", [0, 0x8000, 0x100000])
 def test_zns_write_implicitly_open(nvme0n1, qpair, slba, repeat):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+
     buf = Buffer(96*1024)
     z0 = Zone(qpair, nvme0n1, slba)
     assert z0.state == 'Full'
