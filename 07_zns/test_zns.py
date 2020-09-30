@@ -42,6 +42,25 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem, __versio
 from scripts.zns import Zone
 
 
+# LBA Format Extension Data Structure
+# Zone Descriptor Extension Size bit 71:64 (ZDES)
+# Zone Size 63:0 (ZSZE)
+def get_zone_desctr_size(nvme0,buf):
+    nvme0.identify(buf, nsid=0, cns=5, csi=2).waitdone()
+    zone_desctr_size = buf.data(3833,3832)
+    return zone_desctr_size
+
+def get_zone_size(nvme0,buf):
+    nvme0.identify(buf, nsid=0, cns=5, csi=2).waitdone()
+    zone_size = buf.data(3831,3824)
+    return zone_size
+
+def get_cap_css(nvme0):
+    css = ((nvme0.cap >> 32) & 0x1FE0) >> 5
+    logging.debug("CAP.CSS= 0x%x" % css)
+    return css
+
+
 @pytest.fixture()
 def nvme0n1(nvme0):
     # only verify data in zone 0
@@ -51,7 +70,11 @@ def nvme0n1(nvme0):
 
 
 @pytest.fixture()
-def zone(nvme0n1, qpair):
+def zone(nvme0, nvme0n1, qpair):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+    
     slba = 0x8000*int(random.random()*100)
     ret = Zone(qpair, nvme0n1, slba)
     if ret.state == 'Full':
@@ -79,23 +102,6 @@ def test_zns_identify_namespace(nvme0, buf):
     nvme0.identify(buf, nsid=1, cns=6).waitdone()
     logging.info(buf.dump(64))
     
-# LBA Format Extension Data Structure
-# Zone Descriptor Extension Size bit 71:64 (ZDES)
-# Zone Size 63:0 (ZSZE)
-def get_zone_desctr_size(nvme0,buf):
-    nvme0.identify(buf, nsid=0, cns=5, csi=2).waitdone()
-    zone_desctr_size = buf.data(3833,3832)
-    return zone_desctr_size
-
-def get_zone_size(nvme0,buf):
-    nvme0.identify(buf, nsid=0, cns=5, csi=2).waitdone()
-    zone_size = buf.data(3831,3824)
-    return zone_size
-
-def get_cap_css(nvme0):
-    css = ((nvme0.cap >> 32) & 0x1FE0) >> 5
-    logging.info("CAP.CSS= 0x%x" % css)
-    return css
 
 def test_zns_management_receive(nvme0, nvme0n1, qpair, buf):
     css = get_cap_css(nvme0)
@@ -267,7 +273,7 @@ def _test_zns_write_48k_and_96k(nvme0n1, qpair, zone):
     assert zone.state == 'Full'    
     
     
-@pytest.mark.parametrize("repeat", range(100)) #100
+@pytest.mark.parametrize("repeat", range(10)) #100
 @pytest.mark.parametrize("slba", [0, 0x8000, 0x100000])
 def test_zns_write_implicitly_open(nvme0, nvme0n1, qpair, slba, repeat):
     css = get_cap_css(nvme0)
