@@ -52,13 +52,22 @@ def get_zone_desctr_size(nvme0,buf):
 
 def get_zone_size(nvme0,buf):
     nvme0.identify(buf, nsid=0, cns=5, csi=2).waitdone()
-    zone_size = buf.data(3831,3824)
+    zone_size = buf.data(3831, 3824)
+    #return 0x8000
     return zone_size
 
 def get_cap_css(nvme0):
     css = ((nvme0.cap >> 32) & 0x1FE0) >> 5
     logging.debug("CAP.CSS= 0x%x" % css)
+    #return 0x40
     return css
+
+
+@pytest.fixture(scope="session")
+def buf():
+    ret = Buffer(96*1024, "pynvme zns buffer")
+    yield ret
+    del ret
 
 
 @pytest.fixture()
@@ -252,8 +261,28 @@ def test_zns_write_192k(nvme0, nvme0n1, qpair, zone):
     qpair.waitdone(1)
     assert zone.state == 'Full'
 
+    
+def test_zns_write_invalid_lba(nvme0, nvme0n1, qpair, zone):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+        
+    buf = Buffer(96*1024)
+    zone.write(qpair, buf, 0, 24)
+    zone.write(qpair, buf, 24, 24).waitdone()
+    with pytest.warns(UserWarning, match="ERROR status: 01/bc"):
+        zone.write(qpair, buf, 24, 24).waitdone()
+    zone.close()
+    zone.finish()
+    qpair.waitdone(1)
+    assert zone.state == 'Full'
 
-def test_zns_write_twice(nvme0n1, qpair, zone):
+
+def test_zns_write_twice(nvme0, nvme0n1, qpair, zone):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+    
     buf = Buffer(96*1024)
     zone.write(qpair, buf, 0, 24)
     zone.write(qpair, buf, 0, 24).waitdone()
@@ -263,16 +292,94 @@ def test_zns_write_twice(nvme0n1, qpair, zone):
     assert zone.state == 'Full'    
 
 
-def _test_zns_write_48k_and_96k(nvme0n1, qpair, zone):
-    buf = Buffer(96*1024)
-    zone.write(qpair, buf, 0, 12)
-    zone.write(qpair, buf, 0, 24).waitdone()
+def test_zns_write_to_full(nvme0, nvme0n1, qpair, zone, io_counter=768):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+
+    buf = [Buffer(96*1024)]*768
+    for i in range(io_counter):
+        buf[i][8] = i%256
+        zone.write(qpair, buf[i], i*24, 24)
+    qpair.waitdone(io_counter)
+    assert zone.state == 'Full'
+    
+        
+@pytest.mark.parametrize("io_counter", [1, 2, 10, 39, 100, 255])
+def test_zns_write_and_read_multiple(nvme0, nvme0n1, qpair, zone, io_counter):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+
+    buf_list = [Buffer(96*1024) for i in range(io_counter)]
+    for i in range(io_counter):
+        buf_list[i][8] = i
+        zone.write(qpair, buf_list[i], i*24, 24)
+    zone.close()
+    zone.finish()
+    qpair.waitdone(io_counter)
+    assert zone.state == 'Full'
+    
+    for i in range(io_counter):
+        buf = Buffer(96*1024)
+        zone.read(qpair, buf, i*24, 24).waitdone()
+        logging.debug(buf.dump(16))
+        assert buf[8] == i
+        
+
+def _test_zns_ioworker_baisc(zone):
+    assert zone.state == 'Explicitly Opened'
+    r = zone.ioworker(io_size=24, io_count=768, qdepth=16).close()
+    logging.info(r)
+    assert zone.state == 'Full'
+    
+    
+def test_zns_hello_world_2(nvme0, nvme0n1, qpair, zone, buf):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+        
+    buf[10:21] = b'hello world'
+    zone.write(qpair, buf, 0, 24)
     zone.close()
     zone.finish()
     qpair.waitdone(1)
     assert zone.state == 'Full'    
     
+    read_buf = Buffer()
+    read_qpair = Qpair(nvme0, 10)
+    zone.read(read_qpair, read_buf, 0, 1).waitdone()
+    assert read_buf[10:21] == b'hello world'
+        
     
+@pytest.mark.parametrize("repeat", range(30)) #100
+def test_zns_write_explicitly_open(nvme0, nvme0n1, qpair, buf, zone, repeat):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+        
+    z0 = zone
+    slba = z0.slba
+    assert z0.state == 'Explicitly Opened'
+    assert z0.wpointer == slba
+
+    z0.write(qpair, buf, 0, 96//4)
+    time.sleep(1)
+    assert z0.state == 'Explicitly Opened'
+    assert z0.wpointer == slba+0x18
+
+    z0.close()
+    #logging.info(z0)
+    assert z0.state == 'Closed'
+    assert z0.wpointer == slba+0x18
+    
+    z0.finish()
+    qpair.waitdone()
+    logging.info(z0)
+    assert z0.state == 'Full'
+    assert z0.wpointer == slba+0x4800
+
+
 @pytest.mark.parametrize("repeat", range(10)) #100
 @pytest.mark.parametrize("slba", [0, 0x8000, 0x100000])
 def test_zns_write_implicitly_open(nvme0, nvme0n1, qpair, slba, repeat):
