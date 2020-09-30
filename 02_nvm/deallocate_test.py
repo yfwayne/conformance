@@ -92,7 +92,7 @@ def test_deallocate_nr_maximum(nvme0, nvme0n1, qpair):
     nvme0n1.dsm(qpair, buf, 257).waitdone()
     
 
-def test_deallocate_correct_range(nvme0, nvme0n1,  qpair):
+def test_deallocate_correct_range(nvme0, nvme0n1, qpair):
     if not nvme0n1.supports(0x9):
         pytest.skip("dsm is not supprted")
 

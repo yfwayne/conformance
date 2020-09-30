@@ -40,8 +40,7 @@ def test_getlogpage_invalid_numd(nvme0, repeat):
     buf = Buffer(dts*4)
 
     for lid in (1, 2, 3):
-        with pytest.warns(UserWarning, match="ERROR status: 00/02"):
-            nvme0.getlogpage(lid, buf).waitdone()
+        nvme0.getlogpage(lid, buf).waitdone()
 
 
 def test_getlogpage_after_error(nvme0, nvme0n1, buf, qpair):

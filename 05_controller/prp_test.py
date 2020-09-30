@@ -194,7 +194,7 @@ def test_admin_page_offset(nvme0, offset):
     buf.offset = offset
     assert buf[offset] == 0
     nvme0.identify(buf).waitdone()
-    logging.info(buf.dump(16))
+    logging.info(buf.dump(32))
     assert buf[0] == 0
     assert buf[offset] != 0
 

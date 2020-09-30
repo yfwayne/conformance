@@ -38,8 +38,16 @@ import pytest
 import random
 import logging
 
-from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
+from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem, __version__
 from scripts.zns import Zone
+
+
+@pytest.fixture()
+def nvme0n1(nvme0):
+    # only verify data in zone 0
+    ret = Namespace(nvme0, 1, 0x8000)
+    yield ret
+    ret.close()
 
 
 @pytest.fixture()
@@ -54,15 +62,21 @@ def zone(nvme0n1, qpair):
     assert ret.wpointer == ret.slba
     return ret
 
+
+def test_dut_firmware_and_model_name(nvme0):
+    logging.info(nvme0.id_data(63, 24, str))
+    logging.info(nvme0.id_data(71, 64, str))
+    logging.info("testing conformance with pynvme " + __version__)
+
     
 def test_zns_identify_namespace(nvme0, buf):
     nvme0.identify(buf, nsid=0, cns=1).waitdone()
     logging.info(buf.dump(64))
     nvme0.identify(buf, nsid=1, cns=0).waitdone()
     logging.info(buf.dump(64))
-    #nvme0.identify(buf, nsid=1, cns=5).waitdone()
+    nvme0.identify(buf, nsid=1, cns=5).waitdone()
     logging.info(buf.dump(64))
-    #nvme0.identify(buf, nsid=1, cns=6).waitdone()
+    nvme0.identify(buf, nsid=1, cns=6).waitdone()
     logging.info(buf.dump(64))
     
 
@@ -81,16 +95,13 @@ def test_zns_management_receive(nvme0n1, qpair, buf):
         zone = Zone(qpair, nvme0n1, i*zone_size)
         assert buf.data(base+1)>>4 == 14
         assert buf.data(base+15, base+8) == zone.capacity
-
         logging.info(zone)
     
 
 def test_zns_management_send(nvme0n1, qpair):
     z0 = Zone(qpair, nvme0n1, 0)
-    logging.info(z0.state)
-    for a in [4, 3]:
-        z0.action = a
-        logging.info(z0.state)
+    z0.action(2)
+    assert z0.state == 'Full'
 
 
 @pytest.mark.parametrize("slba", [0, 0x8000, 0x10000, 0x80000, 0x100000])
@@ -183,6 +194,26 @@ def test_zns_write_192k(nvme0n1, qpair, zone):
     zone.finish()
     qpair.waitdone(1)
     assert zone.state == 'Full'
+
+
+def test_zns_write_twice(nvme0n1, qpair, zone):
+    buf = Buffer(96*1024)
+    zone.write(qpair, buf, 0, 24)
+    zone.write(qpair, buf, 0, 24).waitdone()
+    zone.close()
+    zone.finish()
+    qpair.waitdone(1)
+    assert zone.state == 'Full'    
+
+
+def _test_zns_write_48k_and_96k(nvme0n1, qpair, zone):
+    buf = Buffer(96*1024)
+    zone.write(qpair, buf, 0, 12)
+    zone.write(qpair, buf, 0, 24).waitdone()
+    zone.close()
+    zone.finish()
+    qpair.waitdone(1)
+    assert zone.state == 'Full'    
     
     
 @pytest.mark.parametrize("repeat", range(100)) #100
