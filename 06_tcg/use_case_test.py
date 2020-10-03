@@ -101,7 +101,7 @@ def test_uct04_activate_locking_sp(nvme0, comid, new_passwd=b'123456'):
     tcg.Command(nvme0, comid).start_adminsp_session(0x66, new_passwd).send()
     hsn, tsn = tcg.Response(nvme0, comid).receive().start_session()
     tcg.Command(nvme0, comid).get_locking_sp_lifecycle(hsn, tsn).send()
-    tcg.Response(nvme0, comid).receive().get_locking_sp_lifecycle()
+    tcg.Response(nvme0, comid).receive()
     tcg.Command(nvme0, comid).activate(hsn, tsn).send()
     tcg.Response(nvme0, comid).receive()
     tcg.Command(nvme0, comid).end_session(hsn, tsn).send(False)
@@ -110,7 +110,7 @@ def test_uct04_activate_locking_sp(nvme0, comid, new_passwd=b'123456'):
 
 def test_uct05_configuring_authorities(nvme0, comid, new_passwd=b'123456'):
     # enable user1 and passwd
-    tcg.Command(nvme0, comid).start_adminsp_session(0x66, new_passwd).send()
+    tcg.Command(nvme0, comid).start_auth_session(0x66, 0, new_passwd).send()
     hsn, tsn = tcg.Response(nvme0, comid).receive().start_session()
     tcg.Command(nvme0, comid).enable_user(hsn, tsn, 1).send()
     tcg.Response(nvme0, comid).receive()
