@@ -18,6 +18,7 @@
 # -*- coding: utf-8 -*-
 
 
+import time
 import pytest
 import logging
 
@@ -134,6 +135,75 @@ def test_uct05_configuring_authorities(nvme0, comid, new_passwd=b'123456'):
     tcg.Response(nvme0, comid).receive()
 
 
+def test_uct06_configuring_locking_objects(nvme0, nvme0n1, subsystem, verify, comid, new_passwd=b'123456'):
+    # setup range and link to user1
+    tcg.Command(nvme0, comid).start_auth_session(0x69, 0, new_passwd).send()
+    hsn, tsn = tcg.Response(nvme0, comid).receive().start_session()
+    tcg.Command(nvme0, comid).setup_range(hsn, tsn, 1, 0, 64).send()
+    tcg.Response(nvme0, comid).receive()
+    tcg.Command(nvme0, comid).lock_unlock_range(hsn, tsn, 1, False, False).send()
+    tcg.Response(nvme0, comid).receive()
+    tcg.Command(nvme0, comid).end_session(hsn, tsn).send(False)
+    tcg.Response(nvme0, comid).receive()
+
+    # write and verify
+    qpair = d.Qpair(nvme0, 10)
+    buf = d.Buffer(64*512, pvalue=0x5aa55aa5, ptype=32)
+    nvme0n1.write(qpair, buf, 0, 64).waitdone()
+    buf = d.Buffer(64*512)
+    nvme0n1.read(qpair, buf, 0, 64).waitdone()
+    assert buf.data(11, 8) == 0x5aa55aa5
+
+    # power cycle and verify
+    qpair.delete()
+    time.sleep(1)
+    subsystem.poweroff()
+    time.sleep(10)
+    subsystem.poweron()
+    nvme0.reset()
+    qpair = d.Qpair(nvme0, 10)
+    with pytest.warns(UserWarning, match="ERROR status: 02/86"):
+        nvme0n1.read(qpair, buf, 0, 64).waitdone()
+
+
+def test_uct07_unlocking_range(nvme0, nvme0n1, qpair, verify, comid, new_passwd=b'123456'):
+    tcg.Command(nvme0, comid).start_auth_session(0x69, 0, new_passwd).send()
+    hsn, tsn = tcg.Response(nvme0, comid).receive().start_session()
+    tcg.Command(nvme0, comid).lock_unlock_range(
+        hsn, tsn, 1, False, False).send()
+    tcg.Response(nvme0, comid).receive()
+    tcg.Command(nvme0, comid).end_session(hsn, tsn).send(False)
+    tcg.Response(nvme0, comid).receive()
+
+    buf = d.Buffer(64*512)
+    nvme0n1.read(qpair, buf, 0, 64).waitdone()
+    assert buf.data(11, 8) == 0x5aa55aa5
+
+
+def test_uct08_erasing_range(nvme0, nvme0n1, qpair, verify, comid, new_passwd=b'123456'):
+    # TODO: skip on pyrite
+
+    # verify data before erasing
+    buf = d.Buffer(64*512)
+    nvme0n1.read(qpair, buf, 0, 64).waitdone()
+    assert buf.data(11, 8) == 0x5aa55aa5
+
+    # erasing
+    tcg.Command(nvme0, comid).start_auth_session(0x69, 0, new_passwd).send()
+    hsn, tsn = tcg.Response(nvme0, comid).receive().start_session()
+    tcg.Command(nvme0, comid).get_active_key(hsn, tsn, 1).send()
+    prev_data = tcg.Response(nvme0, comid).receive().get_active_key()
+    tcg.Command(nvme0, comid).gen_new_key(hsn, tsn, 1, prev_data).send()
+    tcg.Response(nvme0, comid).receive()
+    tcg.Command(nvme0, comid).end_session(hsn, tsn).send(False)
+    tcg.Response(nvme0, comid).receive()
+
+    # verify
+    buf = d.Buffer(64*512)
+    nvme0n1.read(qpair, buf, 0, 64).waitdone()
+    assert buf.data(11, 8) == 0
+
+
 def test_uct12_revert_locking_sp(nvme0, comid, new_passwd=b'123456'):
     # revert
     orig_timeout = nvme0.timeout
@@ -143,4 +213,3 @@ def test_uct12_revert_locking_sp(nvme0, comid, new_passwd=b'123456'):
     tcg.Command(nvme0, comid).revert_tper(hsn, tsn).send()
     tcg.Response(nvme0, comid).receive()
     nvme0.timeout = orig_timeout
-    
