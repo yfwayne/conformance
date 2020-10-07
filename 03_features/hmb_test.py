@@ -63,14 +63,14 @@ def test_hmb_single_buffer(nvme0, nvme0n1):
 
     # allocate host memory
     logging.info(hmb_size)
-    #hmb_buf = Buffer(hmb_size*4096*2)
-    hmb_buf_2 = Buffer(hmb_size*4096 + 0x200000)  # reserve more buffer
-    #hmb_buf_3 = Buffer(hmb_size*4096*2)
-    #logging.info(hex(hmb_buf.phys_addr))
+    hmb_buf = Buffer(hmb_size*4096*2)
+    hmb_buf_2 = Buffer(hmb_size*4096*2)  # reserve more buffer
+    hmb_buf_3 = Buffer(hmb_size*4096*2)
+    logging.info(hex(hmb_buf.phys_addr))
     logging.info(hex(hmb_buf_2.phys_addr))
-    #logging.info(hex(hmb_buf_3.phys_addr))
-    #del hmb_buf
-    #del hmb_buf_3
+    logging.info(hex(hmb_buf_3.phys_addr))
+    del hmb_buf
+    del hmb_buf_3
 
     # build the hmb list by 1MB chunks
     chunk_size = 0x100000
