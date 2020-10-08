@@ -106,7 +106,6 @@ def test_format_512(nvme0n1):
 
 @pytest.mark.parametrize("mdts", [64, 128, 256, 512, 800, 1024, 16*1024, 32*1024, 32*1024+64, 32*1024+64+8,64*1024])
 def test_write_mdts(nvme0, mdts):
-
     cq = IOCQ(nvme0, 1, 2, PRP())
     sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
 
@@ -169,10 +168,10 @@ def test_page_offset(nvme0, nvme0n1, qpair, buf, offset):
 
 
 @pytest.mark.parametrize("offset", [1, 2, 3, 501, 502])
-def _test_page_offset_invalid(nvme0, nvme0n1, qpair, offset):
+def test_page_offset_invalid(nvme0, nvme0n1, qpair, offset):
     # fill the data
     write_buf = Buffer(512)
-    nvme0n1.write(qpair, write_buf, 0x5aa5).waitdone()
+    nvme0n1.write(qpair, write_buf, 0xa5).waitdone()
 
     # read the data to different offset and check lba
     buf = Buffer(1024, ptype=0, pvalue=1)
@@ -182,10 +181,8 @@ def _test_page_offset_invalid(nvme0, nvme0n1, qpair, offset):
     # Figure 108:Note: The controller is not required to check that bits 1:0
     # are cleared to 00b. The controller may report an error of PRP Offset Invalid
     # pytest warning may not appear here
-    with pytest.warns(UserWarning, match="ERROR status: 00/13"):
-        nvme0n1.read(qpair, buf, 0x5aa5).waitdone()
-    assert buf[offset] == 0xff
-    assert buf[offset+1] == 0xff
+    nvme0n1.read(qpair, buf, 0xa5).waitdone()
+    assert buf[offset] != 0xa5
 
 
 @pytest.mark.parametrize("offset", [4, 16, 32, 512, 800, 1024, 3000])

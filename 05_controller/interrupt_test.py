@@ -179,17 +179,18 @@ def test_pcie_msix_cap_disable_ctrl(pcie, nvme0, nvme0n1, buf, qpair):
     qpair.waitdone()
 
     # Disable MSI-X bit
+    qpair.msix_clear()
     pcie[msix_cap_addr+3] = (msix_ctrl >> 8) & 0x7F
     msix_ctrl = pcie.register(msix_cap_addr+2, 2)
     logging.info("After disable msi-x, msix_ctrl register [0x%x]= 0x%x" %
                  (msix_cap_addr+2, msix_ctrl))
-    qpair.msix_clear()
+    
     assert not qpair.msix_isset()
-    nvme0n1.read(qpair, buf, 0, 8)
+    nvme0n1.flush(qpair)
     time.sleep(1)
     assert not qpair.msix_isset()
     qpair.waitdone()
-    
+
     # restore MSI-X bit
     pcie[msix_cap_addr+3] = (msix_ctrl >> 8) | 0x80
     msix_ctrl = pcie.register(msix_cap_addr+2, 2)

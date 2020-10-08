@@ -72,12 +72,14 @@ def test_features_sel_10(nvme0, fid=0x10):
     while(1):
         MNTMT = nvme0.id_data(325, 324)
         MXTMT = nvme0.id_data(327, 326)
-        randomTMT1 = random.randrange(MNTMT,MXTMT)
-        randomTMT2 = random.randrange(MNTMT,MXTMT)
+        assert MNTMT != MXTMT
+        randomTMT1 = random.randrange(MNTMT, MXTMT)
+        randomTMT2 = random.randrange(MNTMT, MXTMT)
         if randomTMT1 != randomTMT2:
             break
         else:
             continue
+        
     if randomTMT1 < randomTMT2:
         TMT1 = randomTMT1 << 16
         TMT2 = randomTMT2

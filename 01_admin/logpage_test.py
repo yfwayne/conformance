@@ -45,7 +45,7 @@ def test_getlogpage_invalid_numd(nvme0, repeat):
 
 def test_getlogpage_after_error(nvme0, nvme0n1, buf, qpair):
     nvme0.getlogpage(1, buf).waitdone()
-    assert buf.data(7, 0) == 0
+    nerror = buf.data(7, 0)
     nvme0n1.write_uncorrectable(qpair, 0, 8).waitdone()
 
     # generate 2 errors
@@ -54,10 +54,11 @@ def test_getlogpage_after_error(nvme0, nvme0n1, buf, qpair):
     with pytest.warns(UserWarning, match="ERROR status: 02/81"):
         nvme0n1.read(qpair, buf, 0, 8).waitdone()
 
-    time.sleep(0.1) # wait error information ready
+    time.sleep(1) # wait error information ready
     nvme0.getlogpage(1, buf).waitdone()
     nerror1 = buf.data(7, 0)
     nerror2 = buf.data(64+7, 64)
+    assert nerror == nerror2-1
     assert nerror1 == nerror2+1
 
     nvme0n1.write(qpair, buf, 0, 8).waitdone()
@@ -130,7 +131,8 @@ def test_getlogpage_power_cycle_count(nvme0, subsystem, buf):
         return buf.data(115, 112)
 
     powercycle = get_power_cycles(nvme0)
-    subsystem.power_cycle(10)
+    subsystem.poweroff()
+    subsystem.poweron()
     nvme0.reset()
     assert get_power_cycles(nvme0) == powercycle+1
 

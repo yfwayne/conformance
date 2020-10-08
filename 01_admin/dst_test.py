@@ -27,8 +27,8 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 
 
 def test_powercycle_by_sleep(subsystem, nvme0):
-    # sleep system for 10 seconds, to make DUT power off and on
-    subsystem.power_cycle()
+    subsystem.poweroff()
+    subsystem.poweron()
     nvme0.reset()
 
 
