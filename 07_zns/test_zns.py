@@ -329,6 +329,26 @@ def test_zns_fill_a_zone(nvme0, nvme0n1, qpair, buf):
     test_zns_management_receive(nvme0, nvme0n1, qpair, buf)
 
 
+def test_zns_ioworker(nvme0, nvme0n1, qpair, buf):
+    css = get_cap_css(nvme0)
+    if not (css & 0x40):
+        pytest.skip("zns is not supported")
+
+    nzones = get_num_of_zones(nvme0n1, qpair, buf)
+    zone_size = get_zone_size(nvme0, buf)
+    slba = zone_size*int(random.randrange(nzones))
+    logging.info("Test zslba: 0x%x" % slba)
+    zone = Zone(qpair, nvme0n1, slba)
+    zone.reset()
+
+    nvme0n1.ioworker(io_size=8, lba_random=False, read_percentage=0, \
+            region_start=slba, region_end=slba+zone_size).start().close()
+
+    assert zone.state == 'Full'
+    # reset_all_zones(nvme0, nvme0n1, qpair, buf)
+    test_zns_management_receive(nvme0, nvme0n1, qpair, buf)
+    
+
 def test_zns_write_1(nvme0, nvme0n1, qpair, zone):
     css = get_cap_css(nvme0)
     if not (css & 0x40):
