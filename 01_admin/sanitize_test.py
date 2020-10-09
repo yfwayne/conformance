@@ -78,6 +78,9 @@ def test_sanitize_operations_powercycle(nvme0, buf, subsystem):
 
     
 def test_sanitize_operations_powercycle_post(nvme0, nvme0n1, buf, subsystem, qpair):
+    if nvme0.id_data(331, 328) == 0:  #L9
+        pytest.skip("sanitize operation is not supported")  #L10
+        
     logging.info("verify data after sanitize")
     nvme0n1.read(qpair, buf, 11, 1).waitdone()
     assert buf[0] == 0

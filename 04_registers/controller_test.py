@@ -49,9 +49,6 @@ def test_controller_cap(nvme0):
     css = (nvme0.cap>>37) & 0xff
     assert css == 1
 
-    nssrs=nvme0.cap>>36&0x1
-    assert nssrs==1
-
 
 def test_controller_version(nvme0):
     logging.info("ver: 0x%x" % nvme0[8])
@@ -206,7 +203,6 @@ def test_controller_cc_en(nvme0):
     except Exception as e:
         logging.warning(e)
 
-
     if 0 != nvme0.init_adminq():
         raise NvmeEnumerateError("fail to init admin queue")
 
@@ -226,6 +222,9 @@ def test_controller_cc_css(nvme0):
 
 
 def test_controller_mdts(nvme0,nvme0n1):
+    if nvme0.mdts == 1024*1024: # up to 1MB
+        pytest.skip("mdts is maximum")
+
     mps_min = (nvme0.cap>>48) & 0xf
     logging.info("mps_min:{}".format(mps_min))
 

@@ -73,11 +73,13 @@ def test_abort_specific_aer_command(nvme0):
 def test_abort_abort_command(nvme0):
     nvme0.abort(0)
     nvme0.abort(nvme0.latest_cid)
-    nvme0.waitdone(2)
+    with pytest.warns(UserWarning, match="ERROR status: 00/07"):
+        nvme0.waitdone(2)
 
     nvme0.abort(0xffff)
     nvme0.abort(nvme0.latest_cid)
-    nvme0.waitdone(2)
+    with pytest.warns(UserWarning, match="ERROR status: 00/07"):
+        nvme0.waitdone(2)
     
     nvme0.aer()
     nvme0.abort(nvme0.latest_cid) # abort aer command

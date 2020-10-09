@@ -164,7 +164,8 @@ def test_uct06_configuring_locking_objects(nvme0, nvme0n1, subsystem, verify, co
     qpair = d.Qpair(nvme0, 10)
     with pytest.warns(UserWarning, match="ERROR status: 02/86"):
         nvme0n1.read(qpair, buf, 0, 64).waitdone()
-
+    qpair.delete()
+    
 
 def test_uct07_unlocking_range(nvme0, nvme0n1, qpair, verify, comid, new_passwd=b'123456'):
     tcg.Command(nvme0, comid).start_auth_session(0x69, 0, new_passwd).send()
