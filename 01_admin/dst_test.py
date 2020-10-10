@@ -26,6 +26,7 @@ import warnings
 from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 
 
+@pytest.mark.skip(reason="subsystem")
 def test_powercycle_by_sleep(subsystem, nvme0):
     subsystem.poweroff()
     subsystem.poweron()
@@ -215,6 +216,7 @@ def test_pcie_reset_setup(pcie, nvme0):
     nvme0.reset()
 
 
+@pytest.mark.skip(reason="subsystem")
 def test_dst_extended_abort_by_subsystem_reset(nvme0, subsystem, buf):
     if not nvme0.supports(0x14):
         pytest.skip("dst command is not supported")

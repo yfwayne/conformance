@@ -27,6 +27,7 @@ from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 
 # PCIe, different of power states and resets
+@pytest.mark.skip(reason="subsystem")
 def test_power_and_reset(pcie, nvme0, subsystem):
     pcie.aspm = 2              # ASPM L1
     pcie.power_state = 3       # PCI PM D3hot

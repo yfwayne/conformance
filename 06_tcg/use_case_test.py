@@ -135,7 +135,7 @@ def test_uct05_configuring_authorities(nvme0, comid, new_passwd=b'123456'):
     tcg.Response(nvme0, comid).receive()
 
 
-def test_uct06_configuring_locking_objects(nvme0, nvme0n1, subsystem, verify, comid, new_passwd=b'123456'):
+def test_uct06_configuring_locking_objects(nvme0, nvme0n1, qpair, subsystem, verify, comid, new_passwd=b'123456'):
     # setup range and link to user1
     tcg.Command(nvme0, comid).start_auth_session(0x69, 0, new_passwd).send()
     hsn, tsn = tcg.Response(nvme0, comid).receive().start_session()
@@ -147,20 +147,20 @@ def test_uct06_configuring_locking_objects(nvme0, nvme0n1, subsystem, verify, co
     tcg.Response(nvme0, comid).receive()
 
     # write and verify
-    qpair = d.Qpair(nvme0, 10)
     buf = d.Buffer(64*512, pvalue=0x5aa55aa5, ptype=32)
     nvme0n1.write(qpair, buf, 0, 64).waitdone()
     buf = d.Buffer(64*512)
     nvme0n1.read(qpair, buf, 0, 64).waitdone()
     assert buf.data(11, 8) == 0x5aa55aa5
 
-    # power cycle and verify
-    qpair.delete()
-    time.sleep(1)
+    
+@pytest.mark.skip(reason="subsystem")
+def test_uct06_configuring_locking_objects_powercycle(nvme0, nvme0n1, subsystem, verify, comid, new_passwd=b'123456'):    
     subsystem.poweroff()
-    time.sleep(10)
+    time.sleep(5)
     subsystem.poweron()
     nvme0.reset()
+    
     qpair = d.Qpair(nvme0, 10)
     with pytest.warns(UserWarning, match="ERROR status: 02/86"):
         nvme0n1.read(qpair, buf, 0, 64).waitdone()
@@ -170,8 +170,7 @@ def test_uct06_configuring_locking_objects(nvme0, nvme0n1, subsystem, verify, co
 def test_uct07_unlocking_range(nvme0, nvme0n1, qpair, verify, comid, new_passwd=b'123456'):
     tcg.Command(nvme0, comid).start_auth_session(0x69, 0, new_passwd).send()
     hsn, tsn = tcg.Response(nvme0, comid).receive().start_session()
-    tcg.Command(nvme0, comid).lock_unlock_range(
-        hsn, tsn, 1, False, False).send()
+    tcg.Command(nvme0, comid).lock_unlock_range(hsn, tsn, 1, False, False).send()
     tcg.Response(nvme0, comid).receive()
     tcg.Command(nvme0, comid).end_session(hsn, tsn).send(False)
     tcg.Response(nvme0, comid).receive()

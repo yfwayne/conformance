@@ -125,6 +125,7 @@ def test_getlogpage_data_unit_write(nvme0, nvme0n1, len, buf, qpair):
     nvme0n1.write(qpair, Buffer(4096), 0, 8).waitdone()
     
 
+@pytest.mark.skip(reason="subsystem")
 def test_getlogpage_power_cycle_count(nvme0, subsystem, buf):
     def get_power_cycles(nvme0):
         nvme0.getlogpage(2, buf, 512).waitdone()
