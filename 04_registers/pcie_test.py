@@ -166,6 +166,7 @@ def test_pcie_link_control_aspm(nvme0, pcie, aspm): #1:0
     pcie[linkctrl_addr] = (linkctrl&0xfc)|0
     
 
+@pytest.mark.skip(reason="subsystem")
 def test_pcie_cold_reset(subsystem, nvme0, buf):
     nvme0.identify(buf).waitdone()
     subsystem.power_cycle()
