@@ -447,6 +447,9 @@ def test_zns_write_and_read_multiple(nvme0, nvme0n1, qpair, zone, io_counter,buf
         
 
 def test_zns_ioworker_baisc(zone, zone_size):
+    if zns_not_supported(nvme0):
+        pytest.skip("zns is not supported")
+        
     assert zone.state == 'Explicitly Opened'
     r = zone.ioworker(io_size=16, io_count=zone_size/16, qdepth=16).start().close()
     logging.info(r)
