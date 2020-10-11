@@ -115,8 +115,6 @@ def test_reset_all_zones(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones, zn
     if zns_not_supported(nvme0):
         pytest.skip("zns is not supported")
 
-    #zone_size = get_zone_size(nvme0, buf)
-    #zns_size = get_zns_size(nvme0, nvme0n1, qpair, buf)
     for slba in range(0, zns_size, zone_size):
         logging.info("Reset zone @zslba: 0x%x" % slba)
         zone = Zone(qpair, nvme0n1, slba)
@@ -146,9 +144,6 @@ def test_zns_management_receive(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zo
     if zns_not_supported(nvme0):
         pytest.skip("zns is not supported")
     
-    #zone_size = get_zone_size(nvme0, buf)
-    #nvme0n1.zns_mgmt_receive(qpair, buf).waitdone()
-    #nzones = buf.data(7, 0)
     logging.info("number of zones: %d" % num_of_zones)
     logging.info("zone size: 0x%x" % zone_size)
 
@@ -225,8 +220,7 @@ def test_zns_state_machine(nvme0, nvme0n1, qpair, buf, slba):
 def test_zns_state_machine_all(nvme0, nvme0n1, qpair, buf, zslba_list):
     if zns_not_supported(nvme0):
         pytest.skip("zns is not supported")
-
-    #zslba = get_zslba_list(nvme0, nvme0n1, qpair, buf)    
+   
     for slba in zslba_list:
         z0 = Zone(qpair, nvme0n1, slba)
         logging.info("zslba:0x%x" % slba)
@@ -299,8 +293,6 @@ def test_zns_fill_a_zone(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones):
     if zns_not_supported(nvme0):
         pytest.skip("zns is not supported")
 
-    #nzones = get_num_of_zones(nvme0n1, qpair, buf)
-    #zone_size = get_zone_size(nvme0, buf)
     slba = zone_size*int(random.randrange(num_of_zones))
     logging.info("Test zslba: 0x%x" % slba)
     zone = Zone(qpair, nvme0n1, slba)
@@ -311,7 +303,7 @@ def test_zns_fill_a_zone(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones):
     for lba in range(0, zone_size+16, 16):
         zone.write(qpair, buf, lba, 16).waitdone()
 
-    #assert zone.state == 'Full'
+    assert zone.state == 'Full'
     test_zns_management_receive(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones)
 
 
@@ -319,8 +311,6 @@ def test_zns_ioworker(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones):
     if zns_not_supported(nvme0):
         pytest.skip("zns is not supported")
 
-    #nzones = get_num_of_zones(nvme0n1, qpair, buf)
-    #zone_size = get_zone_size(nvme0, buf)
     slba = zone_size*int(random.randrange(num_of_zones))
     logging.info("Test zslba: 0x%x" % slba)
     zone = Zone(qpair, nvme0n1, slba)
@@ -330,7 +320,6 @@ def test_zns_ioworker(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones):
             region_start=slba, region_end=slba+zone_size).start().close()
 
     assert zone.state == 'Full'
-    # reset_all_zones(nvme0, nvme0n1, qpair, buf)
     test_zns_management_receive(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones)
 
 
@@ -338,8 +327,6 @@ def test_zns_transition_next_zone(nvme0, nvme0n1, qpair, buf, zone_size, num_of_
     if zns_not_supported(nvme0):
         pytest.skip("zns is not supported")
 
-    #nzones = get_num_of_zones(nvme0n1, qpair, buf)
-    #zone_size = get_zone_size(nvme0, buf)
     zone_index = int(random.randrange(num_of_zones))
     if zone_index == num_of_zones:
         zone_index = num_of_zones - 1
