@@ -538,5 +538,3 @@ def test_zns_write_implicitly_open(nvme0, nvme0n1, qpair, slba, repeat):
     logging.info(z0)
     assert z0.state == 'Full'
     assert z0.wpointer == slba+0x10
-
-
