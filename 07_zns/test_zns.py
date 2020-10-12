@@ -323,18 +323,21 @@ def test_zns_ioworker(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones):
     test_zns_management_receive(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones)
 
 
-def test_zns_transition_next_zone(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones):
+@pytest.mark.parametrize("repeat", range(2))
+def test_zns_transition_next_zone(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones, repeat):
     if zns_not_supported(nvme0):
         pytest.skip("zns is not supported")
 
     zone_index = int(random.randrange(num_of_zones))
-    if zone_index == num_of_zones:
-        zone_index = num_of_zones - 1
-    next_index = (zone_index + 1) % num_of_zones
+    if zone_index == num_of_zones - 1:        
+        next_index = zone_index
+        zone_index = zone_index - 1
+    else:
+        next_index = (zone_index + 1) % num_of_zones
     slba = zone_size * zone_index
     next_slba = next_index*zone_size
-    logging.info("Test zslba: 0x%x" % slba)
-    logging.info("Next zslba: 0x%x" % next_slba)
+    logging.info("Fill Zone 0x%x, zslba: 0x%x" % (zone_index, slba))
+    logging.info("Next Zone 0x%x, zslba: 0x%x" % (next_index, next_slba))
     zone = Zone(qpair, nvme0n1, slba)
     zone.reset()
     next_zone = Zone(qpair, nvme0n1, next_slba)
