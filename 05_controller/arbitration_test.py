@@ -145,10 +145,11 @@ def test_weighed_round_robin(nvme0):
     logging.info("admin latency when IO busy: %f" % (time.time()-start))
 
     # check sqid of the whole cq
-    time.sleep(1)
+    time.sleep(3)
     logging.info([cq[i][2]>>16 for i in range(100*8)])
     # assert all urgent IO completed first
     last_sqid = {cq[i][2]>>16 for i in range(300, 800)}
+    logging.debug(last_sqid)
     assert 1 not in last_sqid
     assert 2 not in last_sqid
 
@@ -181,7 +182,7 @@ def test_default_round_robin(nvme0):
 
     # check sqid of the whole cq
     time.sleep(1)
-    logging.debug([cq[i][2]>>16 for i in range(100*8)])
+    logging.info([cq[i][2]>>16 for i in range(100*8)])
     # assert all urgent IO completed first
     last_sqid = {cq[i][2]>>16 for i in range(700, 800)}
     assert len(last_sqid) >= 7

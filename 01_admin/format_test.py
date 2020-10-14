@@ -65,33 +65,33 @@ def test_format_verify_data(nvme0, nvme0n1, verify, qpair):
     nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] == b'hello world'
     nvme0.format(0, 0).waitdone()
-    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
-        nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
+    nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] != b'hello world'
+    assert read_buf[10:21] == b'\0'*11
 
     nvme0n1.write(qpair, write_buf, 0, 1).waitdone()
     nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] == b'hello world'
     nvme0.format(0, 1).waitdone()
-    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
-        nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
+    nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] != b'hello world'
+    assert read_buf[10:21] == b'\0'*11
 
     nvme0n1.write(qpair, write_buf, 0, 1).waitdone()
     nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] == b'hello world'
     nvme0.format(0, 0, 0xffffffff).waitdone()
-    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
-        nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
+    nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] != b'hello world'
+    assert read_buf[10:21] == b'\0'*11
 
     nvme0n1.write(qpair, write_buf, 0, 1).waitdone()
     nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] == b'hello world'
     nvme0.format(0, 1, 0xffffffff).waitdone()
-    with pytest.warns(UserWarning, match="ERROR status: 02/81"):
-        nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
+    nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
     assert read_buf[10:21] != b'hello world'
+    assert read_buf[10:21] == b'\0'*11
 
     # crypto erase
     fna = nvme0.id_data(524)
@@ -102,6 +102,7 @@ def test_format_verify_data(nvme0, nvme0n1, verify, qpair):
         nvme0.format(0, 2, 0xffffffff).waitdone()
         nvme0n1.read(qpair, read_buf, 0, 1).waitdone()
         assert read_buf[10:21] != b'hello world'
+        assert read_buf[10:21] == b'\0'*11
 
     nvme0n1.format(512)
     nvme0.timeout = orig_timeout

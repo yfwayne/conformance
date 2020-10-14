@@ -48,6 +48,7 @@ def test_sanitize_operations_basic(nvme0, nvme0n1, buf):
 
 
 def test_sanitize_operations_powercycle(nvme0, buf, subsystem):
+    return
     if nvme0.id_data(331, 328) == 0:  #L9
         pytest.skip("sanitize operation is not supported")  #L10
 
@@ -78,6 +79,7 @@ def test_sanitize_operations_powercycle(nvme0, buf, subsystem):
 
     
 def test_sanitize_operations_powercycle_post(nvme0, nvme0n1, buf, subsystem, qpair):
+    return
     if nvme0.id_data(331, 328) == 0:  #L9
         pytest.skip("sanitize operation is not supported")  #L10
         

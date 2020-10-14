@@ -82,7 +82,7 @@ def test_controller_cap_to(nvme0):
 
     time_start = time.time()
     #wait csts.rdy change from '1' to '0'
-    while (nvme0[0x1c]&0x1)==0: pass
+    while (nvme0[0x1c]&0x1)==1: pass
     assert time.time()-time_start < max_time
 
     #change cc.en from '0' to '1'
@@ -90,10 +90,10 @@ def test_controller_cap_to(nvme0):
 
     #wait csts.rdy change from '0' to '1'
     time_start=int(time.time())
-    while (nvme0[0x1c]&0x1)==1: pass
+    while (nvme0[0x1c]&0x1)==0: pass
     assert time.time()-time_start < max_time
 
-
+    
 def test_controller_cap_mqes(nvme0):
     mqes = 1+(nvme0.cap&0xffff)
     logging.info(mqes)

@@ -44,22 +44,22 @@ def test_getlogpage_invalid_numd(nvme0, repeat):
 
 
 def test_getlogpage_after_error(nvme0, nvme0n1, buf, qpair):
-    nvme0.getlogpage(1, buf).waitdone()
-    nerror = buf.data(7, 0)
     nvme0n1.write_uncorrectable(qpair, 0, 8).waitdone()
 
     # generate 2 errors
     with pytest.warns(UserWarning, match="ERROR status: 02/81"):
         nvme0n1.read(qpair, buf, 0, 8).waitdone()
+    nvme0.getlogpage(1, buf).waitdone()
+    logging.debug(buf.dump(128))
+    nerror1 = buf.data(7, 0)
+    
     with pytest.warns(UserWarning, match="ERROR status: 02/81"):
         nvme0n1.read(qpair, buf, 0, 8).waitdone()
-
-    time.sleep(1) # wait error information ready
     nvme0.getlogpage(1, buf).waitdone()
-    nerror1 = buf.data(7, 0)
-    nerror2 = buf.data(64+7, 64)
-    assert nerror == nerror2-1
-    assert nerror1 == nerror2+1
+    logging.debug(buf.dump(128))
+    nerror2 = buf.data(7, 0)
+    assert nerror1 == buf.data(64+7, 64)
+    assert nerror1+1 == nerror2
 
     nvme0n1.write(qpair, buf, 0, 8).waitdone()
     
