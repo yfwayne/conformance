@@ -190,8 +190,12 @@ def test_admin_page_offset(nvme0, offset):
     buf = d.Buffer(4096*2, 'controller identify data')
     buf.offset = offset
     assert buf[offset] == 0
+    
+    with pytest.warns(UserWarning, match="ERROR status: 00/13"):
+        nvme0.identify(buf).waitdone()
+
+    buf.size = 4096
     nvme0.identify(buf).waitdone()
-    logging.info(buf.dump(32))
     assert buf[0] == 0
     assert buf[offset] != 0
 

@@ -68,6 +68,9 @@ def test_features_sel_10(nvme0, fid=0x10):
     if not nvme0.id_data(521, 520)&0x10:
         pytest.skip("feature sv is not supported")
 
+    new_config = nvme0.getfeatures(fid, sel=2).waitdone()
+    logging.info(hex(new_config))
+        
     # Get random HCTM value
     while(1):
         MNTMT = nvme0.id_data(325, 324)
@@ -87,47 +90,38 @@ def test_features_sel_10(nvme0, fid=0x10):
         TMT1 = randomTMT2 << 16
         TMT2 = randomTMT1
     HCTM = TMT1 + TMT2
-    
+
+    logging.info(hex(HCTM))
     nvme0.setfeatures(fid, cdw11=HCTM).waitdone()
     
-    orig_config = 0
-    def getfeatures_cb_1(cdw0, status):
-        nonlocal orig_config; orig_config = cdw0
-    nvme0.getfeatures(fid, sel=0, cb=getfeatures_cb_1).waitdone()
-    logging.info("%x" % orig_config)
+    orig_config = nvme0.getfeatures(fid, sel=0).waitdone()
+    logging.info(hex(orig_config))
 
     # change value with save bit
     nvme0.setfeatures(fid, sv=1, cdw11=orig_config-1).waitdone()
 
-    new_config = 0
-    def getfeatures_cb_2(cdw0, status):
-        nonlocal new_config; new_config = cdw0
-    nvme0.getfeatures(fid, sel=2, cb=getfeatures_cb_2).waitdone()
-    logging.info("%x" % new_config)
+    new_config = nvme0.getfeatures(fid, sel=2).waitdone()
+    logging.info(hex(new_config))
     assert new_config == HCTM-1
-    nvme0.getfeatures(fid, sel=0, cb=getfeatures_cb_2).waitdone()
-    logging.info("%x" % new_config)
+    
+    new_config = nvme0.getfeatures(fid, sel=0).waitdone()
+    logging.info(hex(new_config))
     assert new_config == HCTM-1
 
     # check the feature after reset event
     nvme0.reset()
 
-    new_config = 0
-    def getfeatures_cb_3(cdw0, status):
-        nonlocal new_config; new_config = cdw0
-    nvme0.getfeatures(fid, sel=2, cb=getfeatures_cb_3).waitdone()
-    logging.info("%x" % new_config)
+    new_config = nvme0.getfeatures(fid, sel=2).waitdone()
+    logging.info(hex(new_config))
     assert new_config == HCTM-1
-    nvme0.getfeatures(fid, sel=0, cb=getfeatures_cb_3).waitdone()
-    logging.info("%x" % new_config)
+    
+    new_config = nvme0.getfeatures(fid, sel=0).waitdone()
+    logging.info(hex(new_config))
     assert new_config == HCTM-1
 
     # revert to default
-    orig_config = 0
-    def getfeatures_cb_4(cdw0, status):
-        nonlocal orig_config; orig_config = cdw0
-    nvme0.getfeatures(fid, sel=1, cb=getfeatures_cb_4).waitdone()
-    logging.info("%x" % orig_config)    
+    orig_config = nvme0.getfeatures(fid, sel=1).waitdone()
+    logging.info(hex(orig_config))
     nvme0.setfeatures(fid, cdw11=orig_config).waitdone()
     
 
