@@ -181,7 +181,7 @@ def test_default_round_robin(nvme0):
     logging.info("admin latency when IO busy: %f" % (time.time()-start))
 
     # check sqid of the whole cq
-    time.sleep(1)
+    time.sleep(3)
     logging.info([cq[i][2]>>16 for i in range(100*8)])
     # assert all urgent IO completed first
     last_sqid = {cq[i][2]>>16 for i in range(700, 800)}
