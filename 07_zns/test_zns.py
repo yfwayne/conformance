@@ -59,14 +59,15 @@ def zns_not_supported(nvme0):
 @pytest.fixture( )
 def zone_desctr_size(nvme0, buf):
     nvme0.identify(buf, nsid=1, cns=5, csi=2).waitdone()
-    ret = buf.data(3833, 3832)
+    ret = buf.data(2833, 2833)
+    logging.debug("ZDES: 0x%x" % ret) 
     return ret
 
 
 @pytest.fixture( )
 def zone_size(nvme0, buf):
     nvme0.identify(buf, nsid=1, cns=5, csi=2).waitdone()
-    ret = buf.data(3831, 3824)
+    ret = buf.data(2831, 2816)
     logging.debug("zone size: 0x%x" % ret)
     if ret == 0:
         ret = 0x8000
@@ -362,7 +363,31 @@ def test_zns_write_1(nvme0, nvme0n1, qpair, zone, buf):
     zone.finish()
     assert zone.state == 'Full'
 
+
+def test_zns_write_a_full_zone(nvme0, nvme0n1, qpair, zone, buf):
+    test_zns_write_1(nvme0, nvme0n1, qpair, zone, buf)
     
+    with pytest.warns(UserWarning, match="ERROR status: 01/b9"):
+        zone.write(qpair, buf, 0x0, 8).waitdone()
+
+
+def test_zns_write_a_closed_zone(nvme0, nvme0n1, qpair, zone, buf, zone_size, num_of_zones):
+    if zns_not_supported(nvme0):
+        pytest.skip("zns is not supported")
+
+    slba = zone_size*int(random.randrange(num_of_zones))
+    logging.info("Test zslba: 0x%x" % slba)
+    zone = Zone(qpair, nvme0n1, slba)
+    zone.reset()
+
+    zone.write(qpair, buf, 0, 16).waitdone()
+    zone.close()
+
+    with pytest.warns(UserWarning, match="ERROR status: 01/bc"):
+        zone.write(qpair, buf, 0x0, 8).waitdone()
+    test_zns_management_receive(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones)
+
+
 def test_zns_write_2(nvme0, nvme0n1, qpair, zone):
     if zns_not_supported(nvme0):
         pytest.skip("zns is not supported")
