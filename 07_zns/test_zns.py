@@ -59,7 +59,7 @@ def zns_not_supported(nvme0):
 @pytest.fixture( )
 def zone_desctr_size(nvme0, buf):
     nvme0.identify(buf, nsid=1, cns=5, csi=2).waitdone()
-    ret = buf.data(2833, 2833)
+    ret = buf.data(2832, 2832)
     logging.debug("ZDES: 0x%x" % ret) 
     return ret
 
