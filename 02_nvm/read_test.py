@@ -170,9 +170,6 @@ def test_read_invalid_prp_address_offset(nvme0, cq, sq):
     cmd = SQE(1, 1)
     buf.offset = 1
     cmd.prp1 = buf
-    cmd[10] = 1
-    cmd[11] = 0
-    cmd[12] = 1
     sq[0] = cmd
     sq.tail = 1
     time.sleep(0.1)
@@ -183,9 +180,6 @@ def test_read_invalid_prp_address_offset(nvme0, cq, sq):
         cmd = SQE(2, 1)
         buf = PRP(4096)
         cmd.prp1 = buf
-        cmd[10] = 1
-        cmd[11] = 0
-        cmd[12] = 1
         sq[1] = cmd
         sq.tail = 2
         time.sleep(0.1)
@@ -194,5 +188,6 @@ def test_read_invalid_prp_address_offset(nvme0, cq, sq):
         logging.info(buf.dump(16))
         assert first_byte == buf[0]
     else:
+        logging.info("error 0x%04x" % status)
         assert status == 0x0013  # invalid namespace or format
 

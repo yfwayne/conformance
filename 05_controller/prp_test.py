@@ -189,15 +189,12 @@ def test_page_offset_invalid(nvme0, nvme0n1, qpair, offset):
 def test_admin_page_offset(nvme0, offset):
     buf = d.Buffer(4096*2, 'controller identify data')
     buf.offset = offset
-    assert buf[offset] == 0
-    
-    with pytest.warns(UserWarning, match="ERROR status: 00/13"):
-        nvme0.identify(buf).waitdone()
-
     buf.size = 4096
-    nvme0.identify(buf).waitdone()
     assert buf[0] == 0
+    assert buf[offset] == 0
+    nvme0.identify(buf).waitdone()
     assert buf[offset] != 0
+    assert buf[0] == 0
 
 
 @pytest.mark.parametrize("offset", [1, 2, 3, 501, 502])
