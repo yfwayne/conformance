@@ -63,14 +63,10 @@ def test_sq_overflow(nvme0):
     sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
 
     # send commands
-    sq[0] = SQE(4<<16+0, 1); sq.tail = 1
-    sq[1] = SQE(3<<16+0, 1); sq.tail = 0
-    sq[0] = SQE(2<<16+0, 1); sq.tail = 0
-    with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
-        nvme0.getfeatures(7).waitdone()
+    sq[0] = SQE(4<<16+0, 1); sq.tail = 1; time.sleep(0.1)
+    sq[1] = SQE(3<<16+0, 1); sq.tail = 0; time.sleep(0.1)
 
     # check cq
-    time.sleep(0.1)
     assert cq[0][3] == 0x10004
     assert cq[1][3] == 0x10003
     assert cq[2][3] == 0
@@ -79,8 +75,8 @@ def test_sq_overflow(nvme0):
     assert cq[2][3] == 0
     assert cq[3][3] == 0
     assert cq[4][3] == 0
-    logging.info(sq[0])
-    logging.info(cq[0])
+    logging.debug(sq[0])
+    logging.debug(cq[0])
 
     sq.delete()
     cq.delete()
@@ -123,7 +119,7 @@ def test_cq_doorbell_valid(nvme0):
     cq.delete()
 
 
-@pytest.mark.parametrize("head", [0, 2, 3, 0xffff, 0x10000])
+@pytest.mark.parametrize("head", [5, 6, 7, 0xffff])
 def test_cq_doorbell_invalid(nvme0, head):
     cq = IOCQ(nvme0, 1, 5, PRP())
     sq = IOSQ(nvme0, 1, 2, PRP(), cqid=1)
@@ -131,6 +127,8 @@ def test_cq_doorbell_invalid(nvme0, head):
 
     time.sleep(0.1)
     cq.head = head
+    time.sleep(0.1)
+    
     #Invalid Doorbell Write Value
     with pytest.warns(UserWarning, match="AER notification is triggered: 0x10100"):
         nvme0.getfeatures(7).waitdone()

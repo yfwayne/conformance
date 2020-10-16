@@ -115,15 +115,16 @@ def test_fused_operations(nvme0, nvme0n1, qpair, buf):
 
 def test_fused_cmd_not_supported(nvme0, nvme0n1, qpair, buf):
     # check if fused commands supported
-    if nvme0.id_data(523, 522) == 0:
-        logging.info("fused command is not supported")
+    if nvme0.id_data(523, 522) != 0:
+        logging.info("fused command is supported")
 
-        # write to init buffer before compare
-        nvme0n1.write(qpair, buf, 8).waitdone()
+    # write to init buffer before compare
+    nvme0n1.write(qpair, buf, 8).waitdone()
 
-        # if fuse not supported, fuse command should abort with invalid field
-        logging.info("fused command is not supported, abort!")
-        with pytest.warns(UserWarning, match="ERROR status: 00/02"):
-            nvme0n1.send_cmd(5|(1<<8), qpair, buf, 1, 8, 0, 0)
-            nvme0n1.send_cmd(1|(1<<9), qpair, buf, 1, 8, 0, 0)
-            qpair.waitdone(2)
+    # if fuse not supported, fuse command should abort with invalid field
+    logging.info("fused command is not supported, abort!")
+    with pytest.warns(UserWarning, match="ERROR status: 00/02"):
+        nvme0n1.send_cmd(5|(1<<8), qpair, buf, 1, 8, 0, 0)
+        nvme0n1.send_cmd(1|(1<<9), qpair, buf, 1, 8, 0, 0)
+        qpair.waitdone(2)
+            

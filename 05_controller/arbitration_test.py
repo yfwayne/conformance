@@ -160,6 +160,9 @@ def test_weighed_round_robin(nvme0):
 
 
 def test_default_round_robin(nvme0):
+    if (nvme0.cap & 0xffff) + 1 < 1024:
+        pytest.skip("cq depth is not enough")
+    
     # 1 admin, 8 io queue
     sq_list = []
     cq = IOCQ(nvme0, 1, 1024, PRP(1024*64))

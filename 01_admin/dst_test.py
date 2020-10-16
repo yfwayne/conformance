@@ -34,8 +34,7 @@ def test_powercycle_by_sleep(subsystem, nvme0):
 
 
 @pytest.mark.parametrize("nsid", [0, 1, 0xffffffff])
-@pytest.mark.parametrize("stc", [1])
-def test_dst(nvme0, buf, nsid, stc):
+def test_dst(nvme0, buf, nsid, stc=1):
     if not nvme0.supports(0x14):
         pytest.skip("dst command is not supported")
 
@@ -53,7 +52,7 @@ def test_dst(nvme0, buf, nsid, stc):
             logging.info("current dst progress percentage: %d%%" % buf[1])
 
 
-def test_dst_extended(nvme0, buf, nsid=0, stc=2):
+def test_dst_extended(nvme0, buf, nsid=0xffffffff, stc=2):
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
 
@@ -195,7 +194,9 @@ def test_dst_extended_abort_by_reset(nvme0, buf):
     nvme0.getlogpage(0x6, buf, 32).waitdone()
     assert not buf[0]
 
-    nvme0.dst(2, 0).waitdone()
+    nvme0.dst(2, 0xffffffff).waitdone()
+    nvme0.getlogpage(0x6, buf, 32).waitdone()
+    assert buf[0] == 2
 
     time.sleep(2)
     nvme0.reset()
@@ -207,7 +208,7 @@ def test_dst_extended_abort_by_reset(nvme0, buf):
     # abort it
     nvme0.dst(0xf, 0).waitdone()
     nvme0.getlogpage(0x6, buf, 32).waitdone()
-    assert not buf[0]
+    assert buf[0] == 0
     assert buf[4] == 0x21   
 
 

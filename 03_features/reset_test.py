@@ -55,13 +55,13 @@ def test_power_and_reset(pcie, nvme0, subsystem):
     nvme0.getfeatures(7).waitdone()
 
 
-@pytest.mark.parametrize("delay", [1]) #, 0.1, 0.01, 0.001, 0.0001, 0])
-def test_reset_with_outstanding_io(nvme0, nvme0n1, delay, io_count=1000):
+@pytest.mark.parametrize("delay", [1, 0.1, 0.01])
+def test_reset_with_outstanding_io(nvme0, nvme0n1, delay, io_count=100):
     nvme0n1.format(512)
     logging.debug("format done")
     
-    cq = IOCQ(nvme0, 1, 1024, PRP(1024*64))
-    sq = IOSQ(nvme0, 1, 1024, PRP(1024*64), cqid=1)
+    cq = IOCQ(nvme0, 1, 128, PRP(1024*64))
+    sq = IOSQ(nvme0, 1, 128, PRP(1024*64), cqid=1)
 
     write_cmd = SQE(1, 1)
     write_cmd[12] = 7  # 4K write
@@ -81,8 +81,8 @@ def test_reset_with_outstanding_io(nvme0, nvme0n1, delay, io_count=1000):
     nvme0.reset()
     
     # read after reset with outstanding writes
-    cq = IOCQ(nvme0, 1, 1024, PRP(1024*64))
-    sq = IOSQ(nvme0, 1, 1024, PRP(1024*64), cqid=1)
+    cq = IOCQ(nvme0, 1, 128, PRP(1024*64))
+    sq = IOSQ(nvme0, 1, 128, PRP(1024*64), cqid=1)
 
     read_cmd = SQE(2, 1)
     read_cmd[12] = 7  # 4K read
