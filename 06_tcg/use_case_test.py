@@ -26,6 +26,10 @@ import nvme as d
 import scripts.tcg as tcg
 
 
+skip_tcg = True
+pytestmark = pytest.mark.skipif(skip_tcg, reason="Skip TCG")
+
+
 @pytest.fixture()
 def comid(nvme0):
     return tcg.Response(nvme0).receive().level0_discovery()

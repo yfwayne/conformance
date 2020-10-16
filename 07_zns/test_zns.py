@@ -43,13 +43,17 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem, __versio
 from scripts.zns import Zone
 
 
+skip_zns = True
+pytestmark = pytest.mark.skipif(skip_zns, reason="zns is not supported")
 
-#@pytest.fixture( )
+
+@pytest.fixture( )
 def zns_not_supported(nvme0):
     cap_css = ((nvme0.cap >> 32) & 0x1FE0) >> 5
     logging.debug("CAP.CSS= 0x%x" % cap_css)
     return not (cap_css & 0x40)
 
+#TODO: Use identify data to skip automaticlly if non-zns drive
 #pytestmark = pytest.mark.skipif(zns_not_supported(nvme0), reason="zns is not supported")  
 
 
