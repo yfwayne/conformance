@@ -96,6 +96,23 @@ def test_deallocate_before_write_uncorrectable(nvme0, nvme0n1, repeat, qpair,
     nvme0n1.write_uncorrectable(qpair, lba_start+repeat*lba_step, lba_count).waitdone()
     nvme0n1.write(qpair, write_buf, lba_start+repeat*lba_step, lba_count).waitdone()
 
+
+def test_write_uncorrectable_invalid_nlb(nvme0, nvme0n1, cq, sq):
+    if not nvme0n1.supports(0x4):
+        pytest.skip("Write Uncorrectable is not supported")
+
+    ncap = nvme0n1.id_data(15, 8)
+    mdts = nvme0.mdts
+    
+    # first cmd, invalid namespace
+    cmd = SQE(4, 1)
+    cmd[12] = mdts//512
+    sq[0] = cmd
+    sq.tail = 1
+    time.sleep(0.1)
+    status = (cq[0][3]>>17)&0x7ff
+    assert status == 0
+
     
 @pytest.mark.parametrize("repeat", range(32))
 def test_write_uncorrectable_read(nvme0, nvme0n1, repeat, qpair, 
@@ -116,19 +133,3 @@ def test_write_uncorrectable_read(nvme0, nvme0n1, repeat, qpair,
     for i in range(lba_count):
         assert read_buf[i*512 + 10] == repeat
 
-
-def test_write_uncorrectable_invalid_nlb(nvme0, nvme0n1, cq, sq):
-    if not nvme0n1.supports(0x4):
-        pytest.skip("Write Uncorrectable is not supported")
-
-    ncap = nvme0n1.id_data(15, 8)
-    mdts = nvme0.mdts
-    
-    # first cmd, invalid namespace
-    cmd = SQE(4, 1)
-    cmd[12] = mdts//512
-    sq[0] = cmd
-    sq.tail = 1
-    time.sleep(0.1)
-    status = (cq[0][3]>>17)&0x7ff
-    assert status == 0
