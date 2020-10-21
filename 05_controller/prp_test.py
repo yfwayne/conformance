@@ -162,6 +162,7 @@ def test_page_offset(nvme0, nvme0n1, qpair, buf, offset):
 
     # read the data to different offset and check lba
     buf.offset = offset
+    buf.size = 512
     nvme0n1.read(qpair, buf, 0x5aa5).waitdone()
     assert buf[offset] == 0xa5
     assert buf[offset+1] == 0x5a
