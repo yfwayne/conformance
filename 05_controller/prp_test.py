@@ -177,6 +177,7 @@ def test_page_offset_invalid(nvme0, nvme0n1, qpair, offset):
     # read the data to different offset and check lba
     buf = Buffer(1024, ptype=0, pvalue=1)
     buf.offset = offset
+    buf.size = 512
 
     # Spec NVM-Express-1_4-2019.06.10-Ratified
     # Figure 108:Note: The controller is not required to check that bits 1:0
@@ -202,6 +203,7 @@ def test_admin_page_offset(nvme0, offset):
 def test_admin_page_offset_invalid(nvme0, nvme0n1, qpair, offset):
     buf = d.Buffer(4096*2, 'controller identify data')
     buf.offset = offset
+    buf.size = 4096
     # pytest warning may not appear here
     with pytest.warns(UserWarning, match="ERROR status: 00/13"):
         nvme0.identify(buf).waitdone()
