@@ -105,7 +105,7 @@ def test_p_invert_after_cq_2_pass(nvme0):
     # cqid: 1, PC, depth: 2
     cq = IOCQ(nvme0, 1, 2, PRP())
 
-    # create four SQ, both use the same CQ
+    # create SQ, QD = 10
     sq3 = IOSQ(nvme0, 3, 10, PRP(), cqid=1)
 
     # IO command templates: opcode and namespace
@@ -124,7 +124,7 @@ def test_p_invert_after_cq_2_pass(nvme0):
     # add some delay, so ssd should finish w1 before w2
     time.sleep(0.1)
 
-    # write in sq5
+    # write in sq3
     w1.cid = 0x567
     sq3[1] = w1
     sq3.tail = 2
@@ -159,7 +159,7 @@ def test_p_invert_after_cq_2_pass(nvme0):
     # add some delay, so ssd should finish w1 before w2
     time.sleep(0.1)
 
-    # write in sq5
+    # write in sq3
     w1.cid = 0x167
     sq3[3] = w1
     sq3.tail = 4
