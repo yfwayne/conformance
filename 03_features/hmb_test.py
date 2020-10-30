@@ -78,6 +78,12 @@ def test_hmb_single_buffer(nvme0, nvme0n1, hmb):
                           time=3):
         pass
         
+    with nvme0n1.ioworker(io_size=64,
+                          lba_random=True,
+                          read_percentage=0,
+                          time=3):
+        pass
+        
         
 def test_hmb_multiple_buffer(nvme0, nvme0n1, buf):
     hmb_size = nvme0.id_data(275, 272)
@@ -132,7 +138,7 @@ def test_hmb_multiple_buffer(nvme0, nvme0n1, buf):
         with nvme0n1.ioworker(io_size=8,
                               lba_random=False,
                               qdepth=8,
-                              read_percentage=100,
+                              read_percentage=0,
                               time=3):
             pass
 
