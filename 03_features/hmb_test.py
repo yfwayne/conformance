@@ -27,7 +27,7 @@ from scripts.psd import IOCQ, IOSQ, PRP, PRPList, SQE, CQE
 
 
 @pytest.fixture(scope="function")
-def hmb(nvme0):
+def hmb(nvme0, buf):
     hmb_size = nvme0.id_data(275, 272)
     if hmb_size == 0:
         pytest.skip("hmb is not supported")
@@ -48,15 +48,38 @@ def hmb(nvme0):
                       cdw13=hmb_list_phys&0xffffffff,
                       cdw14=hmb_list_phys>>32,
                       cdw15=1).waitdone()
+    cdw0 = nvme0.getfeatures(0x0d, buf=buf).waitdone()
+    assert cdw0 == 1
+    assert buf.data(3, 0) == hmb_size
+    assert buf.data(11, 4) == hmb_list_phys
+    assert buf.data(15, 12) == 1
+    logging.info("hmb enabled")
     yield
 
     # disable hmb
     nvme0.setfeatures(0x0d, cdw11=0).waitdone()
-    del hmb_buf
-    del hmb_list_buf
+    cdw0 = nvme0.getfeatures(0x0d, buf=buf).waitdone()
+    assert cdw0 == 0
+    assert hmb_buf
+    assert hmb_list_buf
+    logging.info("hmb disabled")
 
 
-def test_hmb_single_buffer(nvme0, nvme0n1):
+def test_hmb_single_buffer(nvme0, nvme0n1, hmb):
+    hmb_size = nvme0.id_data(275, 272)
+    if hmb_size == 0:
+        pytest.skip("hmb is not supported")
+
+    # test with IO
+    with nvme0n1.ioworker(io_size=8,
+                          lba_random=False,
+                          qdepth=8,
+                          read_percentage=0,
+                          time=3):
+        pass
+        
+        
+def test_hmb_multiple_buffer(nvme0, nvme0n1, buf):
     hmb_size = nvme0.id_data(275, 272)
     if hmb_size == 0:
         pytest.skip("hmb is not supported")
@@ -87,6 +110,7 @@ def test_hmb_single_buffer(nvme0, nvme0n1):
 
     # enable hmb
     hmb_list_phys = hmb_list_buf.phys_addr
+    logging.info(hex(hmb_list_phys))
     nvme0.setfeatures(0x0d,
                       cdw11=1,
                       cdw12=hmb_size,
@@ -94,18 +118,31 @@ def test_hmb_single_buffer(nvme0, nvme0n1):
                       cdw14=hmb_list_phys>>32,
                       cdw15=chunk_count).waitdone()
 
+    cdw0 = nvme0.getfeatures(0x0d, buf=buf).waitdone()
+    logging.info(cdw0)
+    logging.info(buf.dump(16))
+    assert cdw0 == 1
+    assert buf.data(3, 0) == hmb_size
+    assert buf.data(11, 4) == hmb_list_phys
+    assert buf.data(15, 12) == chunk_count
+    
     # test with IO
     for i in range(10):
         logging.info(i)
         with nvme0n1.ioworker(io_size=8,
                               lba_random=False,
                               qdepth=8,
-                              read_percentage=0,
+                              read_percentage=100,
                               time=3):
             pass
 
     # disable hmb
     nvme0.setfeatures(0x0d, cdw11=0).waitdone()
+    cdw0 = nvme0.getfeatures(0x0d, buf=buf).waitdone()
+    logging.info(cdw0)
+    logging.info(buf.dump(16))
+    assert cdw0 == 0
+
     assert hmb_list_buf
     assert hmb_buf_2
     logging.info(hmb_list_buf.dump(64))
