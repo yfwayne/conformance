@@ -47,3 +47,81 @@ def test_format_at_power_state(nvme0, nvme0n1, ps):
     p = nvme0.getfeatures(0x2).waitdone()
     assert p == ps
 
+    
+@pytest.mark.parametrize("ps_from", [0, 1, 2, 3, 4])
+@pytest.mark.parametrize("ps_to", [0, 1, 2, 3, 4])
+def test_power_state_transition(pcie, nvme0, nvme0n1, qpair, buf, ps_from, ps_to):
+    # for accurate sleep delay
+    import ctypes
+    libc = ctypes.CDLL('libc.so.6')
+
+    # write data to LBA 0x5a
+    nvme0n1.write(qpair, buf, 0x5a).waitdone()
+
+    # enable ASPM and get original power state
+    pcie.aspm = 2
+    orig_ps = nvme0.getfeatures(0x2).waitdone()
+
+    # disable apst
+    nvme0.setfeatures(0xc).waitdone()
+    
+    # test with delay 1us-1ms
+    for i in range(1000):
+        # set beginning state
+        nvme0.setfeatures(0x2, cdw11=ps_from).waitdone()
+        libc.usleep(1000)
+
+        # set end state
+        nvme0.setfeatures(0x2, cdw11=ps_to)
+        libc.usleep(i)
+
+        # read lba 0x5a and verify data
+        nvme0n1.read(qpair, buf, 0x5a).waitdone()
+        assert buf[0] == 0x5a
+
+        # consume the cpl of setfeatures above
+        nvme0.waitdone()  # for setfeautres above
+
+    # recover to original power state
+    pcie.aspm = 0
+    nvme0.setfeatures(0x2, cdw11=orig_ps).waitdone()
+
+
+def test_power_state_transition_3_4(pcie, nvme0, nvme0n1, qpair, buf):
+    # for accurate sleep delay
+    import ctypes
+    libc = ctypes.CDLL('libc.so.6')
+
+    # write data to LBA 0x5a
+    nvme0n1.write(qpair, buf, 0x5a).waitdone()
+
+    # enable ASPM and get original power state
+    pcie.aspm = 2
+    orig_ps = nvme0.getfeatures(0x2).waitdone()
+
+    # disable apst
+    nvme0.setfeatures(0xc).waitdone()
+    
+    # test with delay 1us-1ms
+    for i in range(1000):
+        for (ps_from, ps_to) in [(0, 3), (3, 4), (0, 4)]:
+            # set beginning state
+            nvme0.setfeatures(0x2, cdw11=ps_from).waitdone()
+            libc.usleep(1000)
+
+            # set end state
+            nvme0.setfeatures(0x2, cdw11=ps_to)
+            libc.usleep(i)
+
+            # read lba 0x5a and verify data
+            nvme0n1.read(qpair, buf, 0x5a).waitdone()
+            assert buf[0] == 0x5a
+
+            # consume the cpl of setfeatures above
+            nvme0.waitdone()  # for setfeautres above
+
+    # recover to original power state
+    pcie.aspm = 0
+    nvme0.setfeatures(0x2, cdw11=orig_ps).waitdone()
+
+
