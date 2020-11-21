@@ -199,14 +199,17 @@ def test_admin_page_offset(nvme0, offset):
     assert buf[0] == 0
 
 
-@pytest.mark.parametrize("offset", [1, 2, 3, 501, 502])
+@pytest.mark.parametrize("offset", [1, 2, 3])
 def test_admin_page_offset_invalid(nvme0, nvme0n1, qpair, offset):
     buf = d.Buffer(4096*2, 'controller identify data')
     buf.offset = offset
-    buf.size = 4096
+    buf.size = 32  # PRP1 only
+    assert buf[0] == 0
+    assert buf[offset] == 0
     # pytest warning may not appear here
-    with pytest.warns(UserWarning, match="ERROR status: 00/13"):
-        nvme0.identify(buf).waitdone()
+    nvme0.identify(buf).waitdone()
+    logging.info(buf.dump(16))
+    assert buf[0] != 0
 
 
 def test_valid_offset_prp_in_list(nvme0):

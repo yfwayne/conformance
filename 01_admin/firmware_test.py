@@ -24,17 +24,36 @@ import logging
 from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem
 
 
-@pytest.mark.parametrize("size", [4096, 10, 4096*2])
-@pytest.mark.parametrize("offset", [4096, 10, 4096*2])
-def test_firmware_download(nvme0, size, offset):
+@pytest.mark.parametrize("size", [4095, 10, 4095*2])
+@pytest.mark.parametrize("offset", [0, 4096, 4096*2])
+def test_fw_download_invalid_size(nvme0, size, offset):
     fwug = nvme0.id_data(319)
-    logging.info(fwug)
     if fwug == 0 or fwug == 0xff:
         pytest.skip("not applicable")
-    
-    buf = Buffer(size*fwug)
+    fw_active = nvme0.id_data(256) & 0x4
+    if fw_active == 0:
+        pytest.skip(
+            " controller does not support the fw Commit and fw Image Download cmds")
+
+    buf = Buffer(size)
     with pytest.warns(UserWarning, match="ERROR status: (01/14|00/02)"):
-        nvme0.fw_download(buf, offset*fwug).waitdone()
+        nvme0.fw_download(buf, offset, size).waitdone()
+
+
+@pytest.mark.parametrize("size", [4096, 4096*2])
+@pytest.mark.parametrize("offset", [10, 4095, 4095*2])
+def test_fw_download_invalid_ofst(nvme0, size, offset):
+    fwug = nvme0.id_data(319)
+    if fwug == 0 or fwug == 0xff:
+        pytest.skip("not applicable")
+    fw_active = nvme0.id_data(256) & 0x4
+    if fw_active == 0:
+        pytest.skip(
+            " controller does not support the fw Commit and fw Image Download cmds")
+
+    buf = Buffer(size)
+    with pytest.warns(UserWarning, match="ERROR status: (01/14|00/02)"):
+        nvme0.fw_download(buf, offset, size).waitdone()
 
 
 def test_firmware_commit(nvme0):
