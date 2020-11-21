@@ -43,7 +43,7 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem, __versio
 from scripts.zns import Zone
 
 
-skip_zns = True # False
+skip_zns = True #False 
 pytestmark = pytest.mark.skipif(skip_zns, reason="zns is not supported")
 
 
@@ -135,7 +135,6 @@ def test_dut_firmware_and_model_name(nvme0):
     logging.info(nvme0.id_data(63, 24, str))
     logging.info(nvme0.id_data(71, 64, str))
     logging.info("testing conformance with pynvme " + __version__)
-    logging.info("zns= 0x%x" % pytest.global_variable_1)
 
     
 def test_zns_identify_namespace(nvme0, buf):
@@ -164,7 +163,7 @@ def test_zns_management_receive(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zo
         #assert buf.data(base+1)>>4 == 14
         assert buf.data(base+15, base+8) == zone.capacity
         logging.info(zone)
-    
+ 
 
 def test_zns_management_send(nvme0, nvme0n1, qpair):
     z0 = Zone(qpair, nvme0n1, 0)
@@ -288,7 +287,7 @@ def test_zns_fill_a_zone(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones):
 
     #for lba in range(slba, slba+zone_size, 8):
     #    nvme0n1.write(qpair, buf, lba, 8).waitdone()
-    for lba in range(0, zone.capacity+16, 16):
+    for lba in range(0, zone.capacity, 16):
         zone.write(qpair, buf, lba, 16).waitdone()
 
     assert zone.state == 'Full'
@@ -507,3 +506,59 @@ def test_zns_write_implicitly_open(nvme0, nvme0n1, qpair, slba, repeat):
     logging.info(z0)
     assert z0.state == 'Full'
     assert z0.wpointer == slba+0x10
+
+
+def test_write_append(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones):
+    zone_index = int(random.randrange(num_of_zones))
+    slba = zone_size * zone_index
+    zone = Zone(qpair, nvme0n1, slba)
+    logging.info("Append Zone 0x%x, zslba: 0x%x, wp:0x%x" % (zone_index, slba, zone.wpointer))
+    zone.reset()
+    nvme0n1.send_cmd(0x7d, qpair, buf, 1, slba&0xffffffff, slba>>32).waitdone()
+    logging.info("Append Zone 0x%x, zslba: 0x%x, wp:0x%x" % (zone_index, slba, zone.wpointer))
+    nvme0n1.send_cmd(0x7d, qpair, buf, 1, slba&0xffffffff, slba>>32).waitdone()
+    logging.info("Append Zone 0x%x, zslba: 0x%x, wp:0x%x" % (zone_index, slba, zone.wpointer))
+    # zone append not from the zslba,Invalid Field in Command 00/02 (no warn in emulated drive yet)
+    # with pytest.warns(UserWarning, match="ERROR status: 00/02"):
+    nvme0n1.send_cmd(0x7d, qpair, buf, 1, slba&0xffffffff+10, slba>>32).waitdone()
+
+
+    # I/O Command Set Profile (Feature Identifier 19h)
+def test_iocmd_set_profile(nvme0, nvme0n1, qpair, buf):
+    cdw0 = nvme0.getfeatures(0x19).waitdone()
+    iocsci = cdw0 & 0xff
+    logging.info("I/O Command Set Combination Index:0x%x" % iocsci)
+    cdw0 = nvme0.getfeatures(7).waitdone()
+    logging.info("Number of Queue:0x%x" % cdw0)
+
+def test_zone_info(nvme0, buf):
+    nvme0.identify(buf, nsid=1, cns=5, csi=2).waitdone()
+    mar = buf.data(7, 4)
+    logging.info("Maximum Active Resources (MAR): 0x%x" % mar)
+    mor = buf.data(11, 8)
+    logging.info("Maximum Open Resources (MAR): 0x%x" % mor)
+
+
+def test_max_open_zone(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones, zslba_list):
+    nvme0.identify(buf, nsid=1, cns=5, csi=2).waitdone()
+    mor = buf.data(11, 8)
+    logging.info("Maximum Open Resources (MAR): 0x%x" % mor)
+
+    if (mor == 0xffffffff):
+        pytest.skip("No Max open zone limit")
+    else:
+        assert mor < num_of_zones
+
+        for zone_index, slba in enumerate(zslba_list):
+            z0 = Zone(qpair, nvme0n1, slba)
+            z0.reset()
+            if zone_index <= mor:
+                z0.open()
+                logging.info("open zone: %d" % zone_index)
+            else:
+                logging.info("Try to open extra zone: %d" % zone_index)
+                with pytest.warns(UserWarning, match="ERROR status: 01/be"):
+                    z0.open()
+
+                break
+        test_zns_management_receive(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones)
