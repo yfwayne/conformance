@@ -157,3 +157,38 @@ def test_power_state_transition_0_3_4(pcie, nvme0, nvme0n1, qpair, buf):
     nvme0.setfeatures(0x2, cdw11=orig_ps).waitdone()
 
 
+def test_power_state_async_with_io(pcie, nvme0, nvme0n1, verify, duration=100):
+    # for accurate sleep delay
+    import ctypes
+    libc = ctypes.CDLL('libc.so.6')
+
+    # enable ASPM and get original power state
+    pcie.aspm = 2
+    orig_ps = nvme0.getfeatures(0x2).waitdone()
+
+    # disable apst
+    nvme0.setfeatures(0xc).waitdone()
+
+    # start with PS0
+    nvme0.setfeatures(0x2, cdw11=0).waitdone()
+    
+    # fill data for verify
+    nvme0n1.ioworker(io_size=8,
+                     lba_random=False,
+                     read_percentage=0, 
+                     region_end=1024*1024,
+                     io_count=1024*1024//8).start().close()
+
+    #mix read and PS setting
+    w = nvme0n1.ioworker(io_size=8,
+                         lba_random=True,
+                         read_percentage=100, 
+                         region_end=1024*1024,
+                         iops=1000, 
+                         time=duration).start()
+    while w.running:
+        nvme0.setfeatures(0x2, cdw11=3).waitdone()
+        libc.usleep(999)
+        nvme0.setfeatures(0x2, cdw11=4).waitdone()
+        libc.usleep(999)
+    w.close()
