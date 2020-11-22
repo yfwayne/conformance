@@ -43,7 +43,7 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem, __versio
 from scripts.zns import Zone
 
 
-skip_zns = True # False
+skip_zns = True #False 
 pytestmark = pytest.mark.skipif(skip_zns, reason="zns is not supported")
 
 
