@@ -43,7 +43,7 @@ from nvme import Controller, Namespace, Buffer, Qpair, Pcie, Subsystem, __versio
 from scripts.zns import Zone
 
 
-skip_zns = True #False 
+skip_zns = True  # False
 pytestmark = pytest.mark.skipif(skip_zns, reason="zns is not supported")
 
 
@@ -522,6 +522,22 @@ def test_write_append(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones):
     # with pytest.warns(UserWarning, match="ERROR status: 00/02"):
     nvme0n1.send_cmd(0x7d, qpair, buf, 1, slba&0xffffffff+10, slba>>32).waitdone()
 
+
+def test_zone_append(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones):
+    zone_index = int(random.randrange(num_of_zones))
+    slba = zone_size * zone_index
+    zone = Zone(qpair, nvme0n1, slba)
+    logging.info("Append Zone 0x%x, zslba: 0x%x, wp:0x%x" % (zone_index, slba, zone.wpointer))
+    zone.reset()
+
+    zone.append(qpair, buf, slba).waitdone()
+    logging.info("Append Zone 0x%x, zslba: 0x%x, wp:0x%x" % (zone_index, slba, zone.wpointer))
+
+    zone.append(qpair, buf, slba).waitdone()
+    logging.info("Append Zone 0x%x, zslba: 0x%x, wp:0x%x" % (zone_index, slba, zone.wpointer))
+    # zone append not from the zslba,Invalid Field in Command 00/02 (no warn in emulated drive yet)
+    # with pytest.warns(UserWarning, match="ERROR status: 00/02"):
+    zone.append(qpair, buf, slba+10).waitdone()
 
     # I/O Command Set Profile (Feature Identifier 19h)
 def test_iocmd_set_profile(nvme0, nvme0n1, qpair, buf):
