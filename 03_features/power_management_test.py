@@ -69,21 +69,21 @@ def read_write_8M(nvme0n1, qpair):
     
 @pytest.mark.parametrize("ps_from", [0, 1, 2, 3, 4])
 @pytest.mark.parametrize("ps_to", [0, 1, 2, 3, 4])
-def test_power_state_transition(pcie, nvme0, nvme0n1, qpair, ps_from, ps_to):
+def test_power_state_transition(pcie, nvme0, nvme0n1, buf, qpair, ps_from, ps_to):
     # for accurate sleep delay
     import ctypes
     libc = ctypes.CDLL('libc.so.6')
-
-    # write data to LBA 0x5a
-    buf = Buffer(512, ptype=32, pvalue=0x5a5a5a5a)
-    nvme0n1.write(qpair, buf, 0x5a).waitdone()
 
     # enable ASPM and get original power state
     pcie.aspm = 2
     orig_ps = nvme0.getfeatures(0x2).waitdone()
 
     # disable apst
-    nvme0.setfeatures(0xc).waitdone()
+    nvme0.setfeatures(0xc, buf=buf).waitdone()
+
+    # write data to LBA 0x5a
+    buf = Buffer(512, ptype=32, pvalue=0x5a5a5a5a)
+    nvme0n1.write(qpair, buf, 0x5a).waitdone()
 
     # test with delay 1us-1ms
     for delay in range(1000):
@@ -117,16 +117,16 @@ def test_power_state_transition_0_3_4(pcie, nvme0, nvme0n1, qpair, buf):
     import ctypes
     libc = ctypes.CDLL('libc.so.6')
 
-    # write data to LBA 0x5a
-    buf = Buffer(512, ptype=32, pvalue=0x5a5a5a5a)
-    nvme0n1.write(qpair, buf, 0x5a).waitdone()
-
     # enable ASPM and get original power state
     pcie.aspm = 2
     orig_ps = nvme0.getfeatures(0x2).waitdone()
 
     # disable apst
-    nvme0.setfeatures(0xc).waitdone()
+    nvme0.setfeatures(0xc, buf=buf).waitdone()
+
+    # write data to LBA 0x5a
+    buf = Buffer(512, ptype=32, pvalue=0x5a5a5a5a)
+    nvme0n1.write(qpair, buf, 0x5a).waitdone()
     
     # test with delay 1us-10ms, 100 times each us
     for delay in range(10000):
@@ -157,7 +157,7 @@ def test_power_state_transition_0_3_4(pcie, nvme0, nvme0n1, qpair, buf):
     nvme0.setfeatures(0x2, cdw11=orig_ps).waitdone()
 
 
-def test_power_state_async_with_io(pcie, nvme0, nvme0n1, verify, duration=100):
+def test_power_state_async_with_io(pcie, nvme0, nvme0n1, buf, verify, duration=100):
     # for accurate sleep delay
     import ctypes
     libc = ctypes.CDLL('libc.so.6')
@@ -167,7 +167,7 @@ def test_power_state_async_with_io(pcie, nvme0, nvme0n1, verify, duration=100):
     orig_ps = nvme0.getfeatures(0x2).waitdone()
 
     # disable apst
-    nvme0.setfeatures(0xc).waitdone()
+    nvme0.setfeatures(0xc, buf=buf).waitdone()
 
     # start with PS0
     nvme0.setfeatures(0x2, cdw11=0).waitdone()
