@@ -509,17 +509,26 @@ def test_zns_write_implicitly_open(nvme0, nvme0n1, qpair, slba, repeat):
 
 
 def test_zone_append(nvme0, nvme0n1, qpair, buf, zone_size, num_of_zones):
+    alba = 0
+
+    def z_append_cb(cpl):
+        nonlocal alba
+        alba = (cpl[1] << 32) | cpl[0]
+
     zone_index = int(random.randrange(num_of_zones))
     slba = zone_size * zone_index
     zone = Zone(qpair, nvme0n1, slba)
     logging.info("Append Zone 0x%x, zslba: 0x%x, wp:0x%x" % (zone_index, slba, zone.wpointer))
-    zone.reset()
 
-    zone.append(qpair, buf).waitdone()
+    current_wp = zone.wpointer
+    zone.append(qpair, buf, lba_count=9, cb=z_append_cb).waitdone()
     logging.info("Append Zone 0x%x, zslba: 0x%x, wp:0x%x" % (zone_index, slba, zone.wpointer))
+    assert alba == current_wp
 
-    zone.append(qpair, buf).waitdone()
+    current_wp = zone.wpointer
+    zone.append(qpair, buf, lba_count=9, cb=z_append_cb).waitdone()
     logging.info("Append Zone 0x%x, zslba: 0x%x, wp:0x%x" % (zone_index, slba, zone.wpointer))
+    assert alba == current_wp
     # zone append not from the zslba,Invalid Field in Command 00/02
     with pytest.warns(UserWarning, match="ERROR status: 00/02"):
         zone.append(qpair, buf, slba+10).waitdone()
